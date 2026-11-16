@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Block Fusion - Version Test Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Poppins:wght@400;600;700;900&display=swap');
+
+        :root {
+            --bg-beige: #f5f5dc;
+            --bg-brun: #d2b48c;
+            --accent: #8b4513; 
+            --ascension-color: #ca8a04;
+            --grid-size: 340px; 
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #eaddca 0%, #c19a6b 100%);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+        }
+
+        /* --- STYLE ADMIN --- */
+        #admin-trigger {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            background: rgba(0,0,0,0.1);
+            color: rgba(0,0,0,0.4);
+            font-size: 11px;
+            font-weight: 900;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 5000;
+            transition: all 0.2s;
+        }
+        #admin-trigger:hover { background: rgba(0,0,0,0.6); color: white; }
+
+        #admin-auth-panel, #admin-tools-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 24px;
+            border: 4px solid #334155;
+            z-index: 6000;
+            display: none;
+            color: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .admin-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .key-btn {
+            background: #334155;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 900;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .key-btn:active { transform: scale(0.9); background: #4ade80; }
+
+        /* --- GAME UI --- */
+        #game-container {
+            position: relative;
+            background: rgba(139, 69, 19, 0.2);
+            border: 8px solid rgba(139, 69, 19, 0.4);
+            border-radius: 16px;
+            display: grid;
+            width: var(--grid-size);
+            height: var(--grid-size);
+            gap: 6px;
+            padding: 6px;
+        }
+
+        .cell { width: 100%; height: 100%; border-radius: 10px; }
+        .cell-beige { background-color: #f5f5dc; }
+        .cell-brun { background-color: #d2b48c; }
+
+        .block {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            border-radius: 10px;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+            cursor: grab;
+            transition: top 0.2s, left 0.2s, transform 0.1s;
+            z-index: 10;
+        }
+        .block:active { cursor: grabbing; transform: scale(1.05); z-index: 100; }
+
+        /* Couleurs des blocs */
+        .val-2 { background: #ef4444; color: white; }
+        .val-4 { background: #fb923c; color: white; }
+        .val-8 { background: #facc15; color: white; }
+        .val-16 { background: #4ade80; color: white; }
+        .val-32 { background: #2dd4bf; color: white; }
+
+        #score-display {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #8b4513;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 0 white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="admin-trigger" onclick="openAdmin()">ADMIN</div>
+
+    <div id="admin-auth-panel">
+        <h2 class="text-center font-black mb-4">MODE SECRET</h2>
+        <div id="admin-screen" class="bg-black/40 p-3 text-center text-2xl tracking-widest rounded mb-4 h-12"></div>
+        <div class="admin-keypad">
+            <div class="key-btn" onclick="pressKey('1')">1</div>
+            <div class="key-btn" onclick="pressKey('2')">2</div>
+            <div class="key-btn" onclick="pressKey('3')">3</div>
+            <div class="key-btn" onclick="pressKey('4')">4</div>
+            <div class="key-btn" onclick="pressKey('5')">5</div>
+            <div class="key-btn" onclick="pressKey('6')">6</div>
+            <div class="key-btn" onclick="pressKey('7')">7</div>
+            <div class="key-btn" onclick="pressKey('8')">8</div>
+            <div class="key-btn" onclick="pressKey('9')">9</div>
+            <div class="key-btn bg-red-600" onclick="closeAdmin()">X</div>
+            <div class="key-btn" onclick="pressKey('0')">0</div>
+            <div class="key-btn bg-emerald-500" onclick="validateCode()">OK</div>
+        </div>
+    </div>
+
+    <div id="admin-tools-panel">
+        <h2 class="text-center font-black mb-4 text-emerald-400">COMMANDES TEST</h2>
+        <button class="w-full bg-emerald-600 p-3 rounded-xl mb-3 font-bold" onclick="addMoney(1000000)">💰 +1,000,000 $</button>
+        <button class="w-full bg-yellow-600 p-3 rounded-xl mb-3 font-bold" onclick="forceAscension()">✨ FORCE ASCENSION</button>
+        <button class="w-full bg-gray-600 p-3 rounded-xl font-bold" onclick="closeAdmin()">RETOUR AU JEU</button>
+    </div>
+
+    <div class="text-center">
+        <div id="score-display"><span id="money">0</span> $</div>
+        <div id="game-container"></div>
+        <p class="mt-4 font-bold opacity-50">Fusionne les blocs identiques !</p>
+    </div>
+
+    <script>
+        let money = 0;
+        let gridSize = 4;
+        let adminInput = "";
+        const SECRET = "6789";
+
+        // Initialisation de la grille
+        function initGrid() {
+            const container = document.getElementById('game-container');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const cell = document.createElement('div');
+                cell.className = `cell ${(Math.floor(i/gridSize) + (i%gridSize)) % 2 === 0 ? 'cell-beige' : 'cell-brun'}`;
+                cell.dataset.index = i;
+                container.appendChild(cell);
+            }
+            spawnBlock(2);
+            spawnBlock(2);
+        }
+
+        function spawnBlock(val) {
+            const occupied = Array.from(document.querySelectorAll('.block')).map(b => parseInt(b.dataset.index));
+            const empty = [];
+            for(let i=0; i < gridSize**2; i++) if(!occupied.includes(i)) empty.push(i);
+            
+            if (empty.length > 0) {
+                const idx = empty[Math.floor(Math.random()*empty.length)];
+                const block = document.createElement('div');
+                block.className = `block val-${val}`;
+                block.innerText = val;
+                block.dataset.value = val;
+                block.dataset.index = idx;
+                
+                document.getElementById('game-container').appendChild(block);
+                positionBlock(block, idx);
+                setupDrag(block);
+            }
+        }
+
+        function positionBlock(block, idx) {
+            const cell = document.querySelector(`.cell[data-index="${idx}"]`);
+            block.style.width = cell.offsetWidth + 'px';
+            block.style.height = cell.offsetHeight + 'px';
+            block.style.top = cell.offsetTop + 'px';
+            block.style.left = cell.offsetLeft + 'px';
+        }
+
+        // --- LOGIQUE ADMIN ---
+        function openAdmin() {
+            adminInput = "";
+            document.getElementById('admin-screen').innerText = "";
+            document.getElementById('admin-auth-panel').style.display = 'block';
+        }
+
+        function closeAdmin() {
+            document.getElementById('admin-auth-panel').style.display = 'none';
+            document.getElementById('admin-tools-panel').style.display = 'none';
+        }
+
+        function pressKey(num) {
+            if(adminInput.length < 4) {
+                adminInput += num;
+                document.getElementById('admin-screen').innerText = "*".repeat(adminInput.length);
+            }
+        }
+
+        function validateCode() {
+            if(adminInput === SECRET) {
+                document.getElementById('admin-auth-panel').style.display = 'none';
+                document.getElementById('admin-tools-panel').style.display = 'block';
+            } else {
+                adminInput = "";
+                document.getElementById('admin-screen').innerText = "ERREUR";
+                setTimeout(() => document.getElementById('admin-screen').innerText = "", 1000);
+            }
+        }
+
+        function addMoney(amt) {
+            money += amt;
+            document.getElementById('money').innerText = money.toLocaleString();
+        }
+
+        function forceAscension() {
+            gridSize = Math.min(6, gridSize + 1);
+            money = 0;
+            document.getElementById('money').innerText = "0";
+            initGrid();
+            closeAdmin();
+            alert("ASCENSION RÉUSSIE : Grille " + gridSize + "x" + gridSize);
+        }
+
+        // --- DRAG & DROP SIMPLE ---
+        function setupDrag(block) {
+            let isDragging = false;
+            
+            block.onmousedown = (e) => {
+                isDragging = true;
+                block.style.transition = 'none';
+                
+                function move(e) {
+                    if(!isDragging) return;
+                    const container = document.getElementById('game-container').getBoundingClientRect();
+                    block.style.left = (e.clientX - container.left - block.offsetWidth/2) + 'px';
+                    block.style.top = (e.clientY - container.top - block.offsetHeight/2) + 'px';
+                }
+
+                document.onmousemove = move;
+                
+                document.onmouseup = (e) => {
+                    isDragging = false;
+                    document.onmousemove = null;
+                    block.style.transition = 'all 0.2s';
+                    
+                    // Logique de fusion simplifiée pour le test
+                    const cells = document.querySelectorAll('.cell');
+                    let targetIdx = block.dataset.index;
+                    
+                    cells.forEach(cell => {
+                        const rect = cell.getBoundingClientRect();
+                        if(e.clientX > rect.left && e.clientX < rect.right && e.clientY > rect.top && e.clientY < rect.bottom) {
+                            targetIdx = cell.dataset.index;
+                        }
+                    });
+
+                    const other = Array.from(document.querySelectorAll('.block')).find(b => b.dataset.index == targetIdx && b !== block);
+                    
+                    if(other && other.dataset.value === block.dataset.value) {
+                        const newVal = parseInt(block.dataset.value) * 2;
+                        money += newVal;
+                        document.getElementById('money').innerText = money.toLocaleString();
+                        block.remove();
+                        other.remove();
+                        spawnBlockAt(targetIdx, newVal);
+                        spawnBlock(2);
+                    } else {
+                        positionBlock(block, block.dataset.index);
+                    }
+                };
+            };
+        }
+
+        function spawnBlockAt(idx, val) {
+            const block = document.createElement('div');
+            block.className = `block val-${val}`;
+            block.innerText = val;
+            block.dataset.value = val;
+            block.dataset.index = idx;
+            document.getElementById('game-container').appendChild(block);
+            positionBlock(block, idx);
+            setupDrag(block);
+        }
+
+        window.onload = initGrid;
+    </script>
+</body>
+</html>
