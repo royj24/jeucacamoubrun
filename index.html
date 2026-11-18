@@ -197,6 +197,38 @@
 
         <!-- Barre de vie du Boss (Cachée hors combat de boss) -->
         <div id="bossHud" class="hidden w-full max-w-xl mx-auto mt-1 flex flex-col items-center transition-opacity duration-300">
+            <div class="w-full flex justify-between text-xs font-cyber font-bold uppercase tracking-wider mb-1 px-1">
+                <span id="bossName" class="text-pink-400 neon-text-pink">TITAN NÉON</span>
+                <span id="bossHpText" class="text-pink-300">100%</span>
+            </div>
+            <div class="w-full h-3 bg-slate-900/90 rounded-full overflow-hidden border border-pink-500/60 p-0.5 shadow-[0_0_15px_rgba(255,0,128,0.4)]">
+                <div id="bossHpBar" class="h-full bg-gradient-to-r from-pink-600 via-rose-500 to-amber-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <!-- Bannière Centrale (Vagues, Alertes Boss, Renaissance) -->
+        <div id="centerBanner" class="my-auto text-center transition-all duration-300 opacity-0 scale-90">
+            <div id="bannerTitle" class="font-cyber text-4xl sm:text-6xl font-black tracking-wider text-white neon-text-cyan uppercase">
+                VAGUE 1
+            </div>
+            <div id="bannerSub" class="text-xs sm:text-base font-bold tracking-widest text-cyan-300 uppercase mt-1">
+                SECTEUR HOSTILE DÉTECTÉ
+            </div>
+        </div>
+
+        <!-- Bloc Inférieur : Coque du Vaisseau & Onde EMP -->
+        <div class="w-full flex flex-col sm:flex-row justify-between items-center gap-2.5">
+            <!-- Jauge de Coque / Bouclier -->
+            <div class="w-full sm:w-64 bg-slate-900/75 p-2.5 rounded-xl border border-cyan-500/30 backdrop-blur-sm">
+                <div class="flex justify-between text-xs font-bold uppercase tracking-wider mb-1">
+                    <span class="text-cyan-400">Coque Vaisseau</span>
+                    <span id="hudHpText" class="text-emerald-300">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div id="hudHpBar" class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-150" style="width: 100%;"></div>
+                </div>
+            </div>
+
             <!-- Jauge Onde EMP (Cliquable sur mobile/tactile quand pleine) -->
             <button id="empMobileBtn" class="pointer-events-auto w-full sm:w-64 bg-slate-900/75 p-2.5 rounded-xl border border-pink-500/30 backdrop-blur-sm text-left transition-all">
                 <div class="flex justify-between text-xs font-bold uppercase tracking-wider mb-1">
@@ -882,57 +914,30 @@
                 this.droneAngle = 0;
                 this.damageMultiplier = 1.0; // Calculé selon Niveau + Renaissance
                 this.auraColor = '#00f3ff'; // Évolue avec les Renaissances
+                this.shipTier = 0; // 0: Base, 1: Intercepteur, 2: Valkyrie, 3: Dreadnought Nova
+                this.evolutionPulse = 0; // Animation flash lors d'une évolution de châssis
             }
 
             reset(x, y) {
                 this.x = x;
                 this.y = y;
                 this.hp = 100;
+                this.maxHp = 100;
                 this.tilt = 0;
                 this.invulnTimer = 1.5;
                 this.weaponLevel = 1;
                 this.piercingLaser = false;
                 this.weaponTimer = 0;
                 this.orbitalDrones = 0;
+                this.shipTier = 0;
+                this.evolutionPulse = 0;
             }
 
             update(dt, input, width, height, game) {
-                const prevX = this.x;
-
-                // Déplacement Clavier
-                if (input.mode === 'keyboard') {
-                    let dx = 0;
-                    let dy = 0;
-                    if (input.keys['ArrowLeft'] || input.keys['KeyA']) dx -= 1;
-                    if (input.keys['ArrowRight'] || input.keys['KeyD']) dx += 1;
-                    if (input.keys['ArrowUp'] || input.keys['KeyW']) dy -= 1;
-                    if (input.keys['ArrowDown'] || input.keys['KeyS']) dy += 1;
-
-                    if (dx !== 0 || dy !== 0) {
-                        const len = Math.hypot(dx, dy);
-                        this.x += (dx / len) * this.speed * dt;
-                        this.y += (dy / len) * this.speed * dt;
-                    }
-                } else {
-                    // Déplacement fluide vers le pointeur (Souris/Tactile)
-                    const lerpFactor = Math.min(1, dt * 16);
-                    this.x += (input.pointer.x - this.x) * lerpFactor;
-                    this.y += (input.pointer.y - this.y) * lerpFactor;
-                }
-
-                // Limites de l'écran
-                const margin = 24;
-                this.x = Math.max(margin, Math.min(width - margin, this.x));
-                this.y = Math.max(margin, Math.min(height - margin, this.y));
-
-                // Calcul de l'inclinaison visuelle selon la vitesse horizontale
-                const vx = (this.x - prevX) / Math.max(0.001, dt);
-                const targetTilt = Math.max(-0.45, Math.min(0.45, vx / 900));
-                this.tilt += (targetTilt - this.tilt) * Math.min(1, dt * 12);
-
                 // Minuteurs
                 if (this.invulnTimer > 0) this.invulnTimer -= dt;
                 if (this.shieldPulse > 0) this.shieldPulse -= dt * 2;
+                if (this.evolutionPulse > 0) this.evolutionPulse -= dt * 1.5;
                 this.droneAngle += dt * 3.5;
 
                 // Gestion expiration bonus d'arme
@@ -944,7 +949,41 @@
                         game.updateWeaponHUD();
                     }
                 }
-                // Particules de propulseur aux couleurs de l'aura de renaissance
+
+                // Déplacement clavier vs pointeur (souris/tactile)
+                let moveX = 0;
+                let moveY = 0;
+
+                if (input.mode === 'keyboard') {
+                    if (input.keys['ArrowLeft'] || input.keys['KeyA']) moveX -= 1;
+                    if (input.keys['ArrowRight'] || input.keys['KeyD']) moveX += 1;
+                    if (input.keys['ArrowUp'] || input.keys['KeyW']) moveY -= 1;
+                    if (input.keys['ArrowDown'] || input.keys['KeyS']) moveY += 1;
+
+                    if (moveX !== 0 && moveY !== 0) {
+                        const inv = 1 / Math.SQRT2;
+                        moveX *= inv;
+                        moveY *= inv;
+                    }
+
+                    this.x += moveX * this.speed * dt;
+                    this.y += moveY * this.speed * dt;
+                    this.tilt += (moveX * 0.45 - this.tilt) * Math.min(1, dt * 14);
+                } else {
+                    const dx = input.pointer.x - this.x;
+                    const dy = input.pointer.y - this.y;
+                    this.x += dx * Math.min(1, dt * 16);
+                    this.y += dy * Math.min(1, dt * 16);
+                    const targetTilt = Math.max(-0.5, Math.min(0.5, dx * 0.015));
+                    this.tilt += (targetTilt - this.tilt) * Math.min(1, dt * 14);
+                }
+
+                // Contraintes dans les limites de l'écran
+                const margin = this.radius + 10;
+                this.x = Math.max(margin, Math.min(width - margin, this.x));
+                this.y = Math.max(margin + 50, Math.min(height - margin, this.y));
+
+                // Particules de propulseur aux couleurs de l'aura de renaissance (multipliées selon le châssis)
                 if (Math.random() < 0.85) {
                     game.spawnParticle(
                         this.x + (Math.random() - 0.5) * 8,
@@ -952,9 +991,23 @@
                         (Math.random() - 0.5) * 30,
                         180 + Math.random() * 100,
                         this.auraColor,
-                        3.5,
+                        3.5 + this.shipTier * 0.5,
                         0.25
                     );
+                    // Propulseurs latéraux supplémentaires à partir du Tier 1
+                    if (this.shipTier >= 1 && Math.random() < 0.6) {
+                        const offset = this.shipTier >= 2 ? 18 : 13;
+                        const side = Math.random() < 0.5 ? -offset : offset;
+                        game.spawnParticle(
+                            this.x + side,
+                            this.y + 15,
+                            (Math.random() - 0.5) * 20,
+                            160 + Math.random() * 80,
+                            '#ff0080',
+                            2.5,
+                            0.2
+                        );
+                    }
                 }
 
                 // Tir automatique continu
@@ -966,7 +1019,9 @@
 
             shoot(game) {
                 const isLaser = this.piercingLaser;
-                this.fireCooldown = isLaser ? 0.16 : 0.13;
+                // Cadence améliorée légèrement par le Tier du châssis
+                const tierFireRateBonus = 1 - this.shipTier * 0.06;
+                this.fireCooldown = (isLaser ? 0.16 : 0.13) * tierFireRateBonus;
                 const speed = isLaser ? -950 : -780;
                 const color = isLaser ? '#ff0080' : this.auraColor;
                 const baseDmg = isLaser ? 26 : 16;
@@ -983,40 +1038,51 @@
                     game.projectiles.push(new Projectile(this.x + 14, this.y - 12, 90, speed, dmg * 0.85, color, true, isLaser));
                 }
 
+                // Canons d'ailes permanents débloqués par les évolutions de châssis !
+                if (this.shipTier >= 2) {
+                    game.projectiles.push(new Projectile(this.x - 22, this.y - 4, -25, speed * 0.95, dmg * 0.55, '#fbbf24', true, false));
+                    game.projectiles.push(new Projectile(this.x + 22, this.y - 4, 25, speed * 0.95, dmg * 0.55, '#fbbf24', true, false));
+                }
+                if (this.shipTier >= 3) {
+                    game.projectiles.push(new Projectile(this.x - 31, this.y + 2, -65, speed * 0.9, dmg * 0.45, '#ff0080', true, false));
+                    game.projectiles.push(new Projectile(this.x + 31, this.y + 2, 65, speed * 0.9, dmg * 0.45, '#ff0080', true, false));
+                }
+
                 // Tirs des drones alliés orbitaux
                 for (let i = 0; i < this.orbitalDrones; i++) {
                     const angle = this.droneAngle + i * Math.PI;
-                    const dx = this.x + Math.cos(angle) * 42;
-                    const dy = this.y + Math.sin(angle) * 42;
-                    game.projectiles.push(new Projectile(dx, dy - 10, 0, -800, 12 * this.damageMultiplier, '#34d399', true, false));
+                    const dx = this.x + Math.cos(angle) * 38;
+                    const dy = this.y + Math.sin(angle) * 38;
+                    game.projectiles.push(new Projectile(dx, dy - 8, 0, -760, 12 * this.damageMultiplier, '#fbbf24', true, false));
                 }
 
                 game.sound.playShoot(isLaser ? 'laser' : 'normal');
             }
 
             draw(ctx) {
-                // Clignotement d'invulnérabilité
-                if (this.invulnTimer > 0 && Math.floor(this.invulnTimer * 16) % 2 === 0) {
+                // Clignotement pendant l'invulnérabilité
+                if (this.invulnTimer > 0 && Math.floor(this.invulnTimer * 18) % 2 === 0) {
                     return;
                 }
 
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                // Dessin des drones orbitaux
+                // Dessin des drones alliés orbitaux
                 for (let i = 0; i < this.orbitalDrones; i++) {
                     const angle = this.droneAngle + i * Math.PI;
-                    const dx = Math.cos(angle) * 42;
-                    const dy = Math.sin(angle) * 42;
+                    const dx = Math.cos(angle) * 38;
+                    const dy = Math.sin(angle) * 38;
                     ctx.save();
                     ctx.translate(dx, dy);
-                    ctx.fillStyle = '#34d399';
+                    ctx.fillStyle = '#fbbf24';
                     ctx.shadowBlur = 12;
-                    ctx.shadowColor = '#34d399';
+                    ctx.shadowColor = '#fbbf24';
                     ctx.beginPath();
                     ctx.moveTo(0, -8);
-                    ctx.lineTo(6, 6);
-                    ctx.lineTo(-6, 6);
+                    ctx.lineTo(6, 5);
+                    ctx.lineTo(0, 2);
+                    ctx.lineTo(-6, 5);
                     ctx.closePath();
                     ctx.fill();
                     ctx.restore();
@@ -1025,13 +1091,24 @@
                 // Application de l'inclinaison 3D simulée
                 ctx.scale(1 - Math.abs(this.tilt) * 0.35, 1);
                 ctx.rotate(this.tilt * 0.35);
-                // Fuselage principal Cyberpunk avec teinte selon le rang de Renaissance
-                ctx.strokeStyle = this.auraColor;
-                ctx.fillStyle = '#091526';
-                ctx.lineWidth = 2.5;
-                ctx.shadowBlur = 18;
-                ctx.shadowColor = this.auraColor;
 
+                // Halo d'évolution temporaire lors du changement d'apparence
+                if (this.evolutionPulse > 0) {
+                    ctx.save();
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.globalAlpha = Math.min(1, this.evolutionPulse);
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 32 + (1 - this.evolutionPulse) * 25, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // Flamme dynamique du propulseur principal (plus grande selon le Tier)
+                const flameHeight = 14 + this.shipTier * 3 + Math.random() * 10;
+                ctx.fillStyle = '#ff0080';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff0080';
                 ctx.beginPath();
                 ctx.moveTo(-6, 16);
                 ctx.lineTo(0, 16 + flameHeight);
@@ -1039,31 +1116,137 @@
                 ctx.closePath();
                 ctx.fill();
 
-                // Fuselage principal Cyberpunk
-                ctx.strokeStyle = '#00f3ff';
+                // Propulseurs auxiliaires visibles dès le Tier 1
+                if (this.shipTier >= 1) {
+                    const auxX = this.shipTier >= 2 ? 17 : 12;
+                    const auxFlame = 9 + Math.random() * 6;
+                    ctx.fillStyle = this.auraColor;
+                    [-auxX, auxX].forEach(px => {
+                        ctx.beginPath();
+                        ctx.moveTo(px - 3, 14);
+                        ctx.lineTo(px, 14 + auxFlame);
+                        ctx.lineTo(px + 3, 14);
+                        ctx.closePath();
+                        ctx.fill();
+                    });
+                }
+
+                // Dessin évolutif du châssis selon this.shipTier (0 à 3)
+                ctx.strokeStyle = this.auraColor;
                 ctx.fillStyle = '#091526';
                 ctx.lineWidth = 2.5;
-                ctx.shadowBlur = 18;
-                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 18 + this.shipTier * 4;
+                ctx.shadowColor = this.auraColor;
 
-                ctx.beginPath();
-                ctx.moveTo(0, -24);       // Nez
-                ctx.lineTo(20, 14);       // Aile droite
-                ctx.lineTo(8, 10);
-                ctx.lineTo(5, 18);
-                ctx.lineTo(-5, 18);
-                ctx.lineTo(-8, 10);
-                ctx.lineTo(-20, 14);      // Aile gauche
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
+                if (this.shipTier === 0) {
+                    // TIER 0 : Chasseur Standard
+                    ctx.beginPath();
+                    ctx.moveTo(0, -24);       // Nez
+                    ctx.lineTo(20, 14);       // Aile droite
+                    ctx.lineTo(8, 10);
+                    ctx.lineTo(5, 18);
+                    ctx.lineTo(-5, 18);
+                    ctx.lineTo(-8, 10);
+                    ctx.lineTo(-20, 14);      // Aile gauche
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (this.shipTier === 1) {
+                    // TIER 1 : Intercepteur Avancé (Ailes effilées + lames avant)
+                    ctx.beginPath();
+                    ctx.moveTo(0, -28);
+                    ctx.lineTo(9, -8);
+                    ctx.lineTo(25, 12);
+                    ctx.lineTo(21, 18);
+                    ctx.lineTo(13, 13);
+                    ctx.lineTo(6, 19);
+                    ctx.lineTo(-6, 19);
+                    ctx.lineTo(-13, 13);
+                    ctx.lineTo(-21, 18);
+                    ctx.lineTo(-25, 12);
+                    ctx.lineTo(-9, -8);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
 
-                // Cockpit lumineux
-                ctx.fillStyle = '#ffffff';
+                    // Lames énergétiques sur les ailes
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 1.8;
+                    ctx.beginPath();
+                    ctx.moveTo(14, -2); ctx.lineTo(22, -11);
+                    ctx.moveTo(-14, -2); ctx.lineTo(-22, -11);
+                    ctx.stroke();
+                } else if (this.shipTier === 2) {
+                    // TIER 2 : Croiseur Valkyrie (Double voilure + canons dorés intégrés)
+                    ctx.beginPath();
+                    ctx.moveTo(0, -31);
+                    ctx.lineTo(11, -12);
+                    ctx.lineTo(29, 4);
+                    ctx.lineTo(26, 18);
+                    ctx.lineTo(17, 14);
+                    ctx.lineTo(7, 21);
+                    ctx.lineTo(-7, 21);
+                    ctx.lineTo(-17, 14);
+                    ctx.lineTo(-26, 18);
+                    ctx.lineTo(-29, 4);
+                    ctx.lineTo(-11, -12);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Canons d'ailes dorés
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fillRect(20, -10, 3.5, 16);
+                    ctx.fillRect(-23.5, -10, 3.5, 16);
+                } else {
+                    // TIER 3 : Dreadnought Nova (Envergure maximale, lames plasma & cœur doré)
+                    ctx.beginPath();
+                    ctx.moveTo(0, -34);
+                    ctx.lineTo(12, -15);
+                    ctx.lineTo(35, 2);
+                    ctx.lineTo(32, 19);
+                    ctx.lineTo(21, 15);
+                    ctx.lineTo(14, 22);
+                    ctx.lineTo(7, 22);
+                    ctx.lineTo(0, 17);
+                    ctx.lineTo(-7, 22);
+                    ctx.lineTo(-14, 22);
+                    ctx.lineTo(-21, 15);
+                    ctx.lineTo(-32, 19);
+                    ctx.lineTo(-35, 2);
+                    ctx.lineTo(-12, -15);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Ailerons supérieurs dorés & lames plasma
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(15, -10); ctx.lineTo(29, -15); ctx.lineTo(25, 4);
+                    ctx.moveTo(-15, -10); ctx.lineTo(-29, -15); ctx.lineTo(-25, 4);
+                    ctx.stroke();
+
+                    // Réacteur central doré
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.beginPath();
+                    ctx.arc(0, 5, 4.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Cockpit lumineux (évolue en forme de visière sur les tiers avancés)
+                ctx.fillStyle = this.shipTier >= 2 ? '#fbbf24' : '#ffffff';
                 ctx.beginPath();
-                ctx.moveTo(0, -10);
-                ctx.lineTo(4, 3);
-                ctx.lineTo(-4, 3);
+                if (this.shipTier >= 2) {
+                    ctx.moveTo(0, -16);
+                    ctx.lineTo(6, 2);
+                    ctx.lineTo(0, 6);
+                    ctx.lineTo(-6, 2);
+                } else {
+                    ctx.moveTo(0, -10);
+                    ctx.lineTo(4, 3);
+                    ctx.lineTo(-4, 3);
+                }
                 ctx.closePath();
                 ctx.fill();
 
@@ -1073,7 +1256,7 @@
                 ctx.globalAlpha = shieldAlpha;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+                ctx.arc(0, 0, this.radius + 8 + this.shipTier * 2, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.globalAlpha = 1;
 
@@ -1082,7 +1265,7 @@
         }
 
         class Projectile {
-            constructor(x, y, vx, vy, damage, color, isPlayer, isPiercing = false) {
+            constructor(x, y, vx, vy, damage, color, isPlayer = true, isPiercing = false) {
                 this.x = x;
                 this.y = y;
                 this.vx = vx;
@@ -1091,8 +1274,8 @@
                 this.color = color;
                 this.isPlayer = isPlayer;
                 this.isPiercing = isPiercing;
-                this.radius = isPlayer ? (isPiercing ? 6 : 4) : 5;
-                this.hitTargets = new Set(); // Évite de toucher 60 fois par seconde un ennemi avec le laser perforant
+                this.radius = isPiercing ? 6 : (isPlayer ? 4 : 6);
+                this.hitTargets = new Set(); // Évite les dégâts multiples sur la même cible pour les lasers perforants
             }
 
             update(dt) {
@@ -1107,17 +1290,15 @@
                 ctx.shadowColor = this.color;
 
                 if (this.isPlayer) {
-                    const width = this.isPiercing ? 5 : 4;
-                    const height = this.isPiercing ? 26 : 16;
-                    ctx.beginPath();
-                    ctx.roundRect(this.x - width / 2, this.y - height / 2, width, height, 3);
-                    ctx.fill();
-
-                    // Coeur blanc brillant
+                    const angle = Math.atan2(this.vy, this.vx) + Math.PI / 2;
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(angle);
+                    const w = this.isPiercing ? 5 : 3.5;
+                    const h = this.isPiercing ? 26 : 16;
+                    ctx.fillRect(-w / 2, -h / 2, w, h);
                     ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(this.x - 1, this.y - height / 2 + 2, 2, height - 4);
+                    ctx.fillRect(-w / 4, -h / 2 + 2, w / 2, h - 4);
                 } else {
-                    // Orbe plasma ennemi
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                     ctx.fill();
@@ -1131,97 +1312,89 @@
         }
 
         class Enemy {
-            constructor(x, y, type, waveScale) {
+            constructor(x, y, type, waveScale = 1) {
                 this.x = x;
                 this.y = y;
-                this.type = type; // 'chaser', 'drone', 'tank', 'kamikaze'
+                this.type = type; // 'scout', 'weaver', 'shooter', 'tank'
+                this.timer = Math.random() * Math.PI * 2;
                 this.hitFlash = 0;
-                this.timer = Math.random() * 10;
 
-                if (type === 'chaser') {
-                    this.radius = 16;
-                    this.hp = 28 * waveScale;
-                    this.speed = 210 + Math.random() * 50;
-                    this.color = '#ff0080';
-                    this.score = 100;
-                } else if (type === 'drone') {
-                    this.radius = 20;
-                    this.hp = 48 * waveScale;
-                    this.speed = 115;
-                    this.color = '#a855f7';
-                    this.score = 180;
-                    this.fireTimer = 1.0 + Math.random() * 1.5;
-                } else if (type === 'tank') {
-                    this.radius = 28;
-                    this.hp = 135 * waveScale;
-                    this.speed = 65;
-                    this.color = '#f59e0b';
-                    this.score = 350;
-                    this.fireTimer = 2.0;
-                } else if (type === 'kamikaze') {
-                    this.radius = 15;
-                    this.hp = 22 * waveScale;
-                    this.speed = 310;
-                    this.color = '#ef4444';
-                    this.score = 150;
+                // Définition des archétypes ennemis
+                switch (type) {
+                    case 'weaver': // Rapide en zigzag
+                        this.radius = 16;
+                        this.hp = Math.round(28 * waveScale);
+                        this.maxHp = this.hp;
+                        this.speedY = 175 + Math.random() * 40;
+                        this.color = '#a855f7';
+                        this.points = 150;
+                        this.shootCooldown = 999;
+                        break;
+                    case 'shooter': // Tireur à distance
+                        this.radius = 20;
+                        this.hp = Math.round(48 * waveScale);
+                        this.maxHp = this.hp;
+                        this.speedY = 105;
+                        this.color = '#ff0080';
+                        this.points = 250;
+                        this.shootCooldown = 1.4 + Math.random();
+                        break;
+                    case 'tank': // Croiseur lourd blindé
+                        this.radius = 30;
+                        this.hp = Math.round(145 * waveScale);
+                        this.maxHp = this.hp;
+                        this.speedY = 62;
+                        this.color = '#f59e0b';
+                        this.points = 500;
+                        this.shootCooldown = 2.0;
+                        break;
+                    case 'scout': // Éclaireur standard
+                    default:
+                        this.radius = 16;
+                        this.hp = Math.round(24 * waveScale);
+                        this.maxHp = this.hp;
+                        this.speedY = 145 + Math.random() * 30;
+                        this.color = '#38bdf8';
+                        this.points = 100;
+                        this.shootCooldown = 999;
+                        break;
                 }
-                this.maxHp = this.hp;
             }
 
             update(dt, player, game) {
                 this.timer += dt;
                 if (this.hitFlash > 0) this.hitFlash -= dt;
 
-                if (this.type === 'chaser') {
-                    // Mouvement sinusoïdal rapide
-                    this.y += this.speed * dt;
-                    this.x += Math.sin(this.timer * 4) * 140 * dt;
-                } else if (this.type === 'drone') {
-                    // Descend puis se stabilise en tirant vers le joueur
-                    const targetY = Math.min(game.height * 0.42, 120 + (this.timer * 35));
-                    if (this.y < targetY) {
-                        this.y += this.speed * dt;
-                    }
-                    this.x += Math.cos(this.timer * 2.2) * 90 * dt;
+                this.y += this.speedY * dt;
 
-                    this.fireTimer -= dt;
-                    if (this.fireTimer <= 0) {
-                        this.fireTimer = 2.1;
-                        const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                        game.projectiles.push(new Projectile(
-                            this.x, this.y + 15,
-                            Math.cos(angle) * 280,
-                            Math.sin(angle) * 280,
-                            15, '#c084fc', false
-                        ));
-                        game.sound.playEnemyShoot();
-                    }
-                } else if (this.type === 'tank') {
-                    // Avance lentement et tire une salve en éventail
-                    this.y += this.speed * dt;
-                    this.fireTimer -= dt;
-                    if (this.fireTimer <= 0) {
-                        this.fireTimer = 2.6;
-                        for (let a = -0.35; a <= 0.35; a += 0.35) {
-                            const angle = Math.PI / 2 + a;
-                            game.projectiles.push(new Projectile(
-                                this.x, this.y + 20,
-                                Math.cos(angle) * 240,
-                                Math.sin(angle) * 240,
-                                18, '#fbbf24', false
-                            ));
-                        }
-                        game.sound.playEnemyShoot();
-                    }
-                } else if (this.type === 'kamikaze') {
-                    // Fonçage direct vers la position du joueur
-                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                    this.x += Math.cos(angle) * this.speed * dt;
-                    this.y += Math.sin(angle) * this.speed * dt;
+                if (this.type === 'weaver') {
+                    this.x += Math.cos(this.timer * 4.5) * 210 * dt;
+                } else if (this.type === 'shooter') {
+                    this.x += Math.sin(this.timer * 2.2) * 85 * dt;
                 }
 
                 // Maintien dans la largeur de l'écran
-                this.x = Math.max(this.radius + 10, Math.min(game.width - this.radius - 10, this.x));
+                this.x = Math.max(this.radius + 12, Math.min(game.width - this.radius - 12, this.x));
+
+                // Comportement de tir
+                if (this.type === 'shooter' || this.type === 'tank') {
+                    this.shootCooldown -= dt;
+                    if (this.shootCooldown <= 0 && this.y > 40 && this.y < game.height * 0.72) {
+                        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                        if (this.type === 'shooter') {
+                            this.shootCooldown = 2.1;
+                            game.projectiles.push(new Projectile(this.x, this.y + 16, Math.cos(angle) * 270, Math.sin(angle) * 270, 15, '#ff0080', false));
+                        } else {
+                            // Tir en éventail de 3 projectiles pour le Tank
+                            this.shootCooldown = 2.6;
+                            [-0.26, 0, 0.26].forEach(offset => {
+                                const a = angle + offset;
+                                game.projectiles.push(new Projectile(this.x, this.y + 22, Math.cos(a) * 230, Math.sin(a) * 230, 18, '#f59e0b', false));
+                            });
+                        }
+                        game.sound.playEnemyShoot();
+                    }
+                }
             }
 
             draw(ctx) {
@@ -1230,72 +1403,51 @@
 
                 const activeColor = this.hitFlash > 0 ? '#ffffff' : this.color;
                 ctx.strokeStyle = activeColor;
-                ctx.fillStyle = '#0b091a';
+                ctx.fillStyle = '#0c1021';
                 ctx.lineWidth = 2.5;
                 ctx.shadowBlur = 14;
                 ctx.shadowColor = activeColor;
 
-                if (this.type === 'chaser') {
-                    // Triangle inversé agressif
-                    ctx.beginPath();
-                    ctx.moveTo(0, 18);
-                    ctx.lineTo(16, -14);
-                    ctx.lineTo(0, -6);
-                    ctx.lineTo(-16, -14);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                } else if (this.type === 'drone') {
-                    // Hexagone rotatif
-                    ctx.rotate(this.timer * 1.5);
-                    ctx.beginPath();
+                ctx.beginPath();
+                if (this.type === 'tank') {
+                    // Hexagone blindé
                     for (let i = 0; i < 6; i++) {
-                        const a = (i * Math.PI) / 3;
-                        const px = Math.cos(a) * 20;
-                        const py = Math.sin(a) * 20;
+                        const a = (i * Math.PI) / 3 + Math.PI / 6;
+                        const px = Math.cos(a) * this.radius;
+                        const py = Math.sin(a) * this.radius;
                         if (i === 0) ctx.moveTo(px, py);
                         else ctx.lineTo(px, py);
                     }
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // Noyau central
-                    ctx.fillStyle = activeColor;
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 6, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (this.type === 'tank') {
-                    // Châssis lourd blindé
-                    ctx.beginPath();
-                    ctx.roundRect(-24, -22, 48, 44, 6);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // Tourelles latérales
-                    ctx.strokeRect(-30, -10, 6, 22);
-                    ctx.strokeRect(24, -10, 6, 22);
-
-                    // Barre de vie intégrée pour les tanks
-                    const hpRatio = Math.max(0, this.hp / this.maxHp);
-                    ctx.fillStyle = '#1e293b';
-                    ctx.fillRect(-18, -32, 36, 4);
-                    ctx.fillStyle = '#f59e0b';
-                    ctx.fillRect(-18, -32, 36 * hpRatio, 4);
-                } else if (this.type === 'kamikaze') {
-                    // Étoile/losange pulsant
-                    const scale = 1 + Math.sin(this.timer * 15) * 0.15;
-                    ctx.scale(scale, scale);
-                    ctx.rotate(this.timer * 6);
-                    ctx.beginPath();
-                    ctx.moveTo(0, -16);
-                    ctx.lineTo(12, 0);
-                    ctx.lineTo(0, 16);
-                    ctx.lineTo(-12, 0);
+                } else if (this.type === 'shooter') {
+                    // Losange agressif
+                    ctx.moveTo(0, this.radius + 4);
+                    ctx.lineTo(this.radius, 0);
+                    ctx.lineTo(0, -this.radius);
+                    ctx.lineTo(-this.radius, 0);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
+                } else if (this.type === 'weaver') {
+                    // Triangle inversé effilé
+                    ctx.moveTo(0, this.radius + 3);
+                    ctx.lineTo(this.radius, -this.radius);
+                    ctx.lineTo(0, -this.radius * 0.4);
+                    ctx.lineTo(-this.radius, -this.radius);
+                    ctx.closePath();
+                } else {
+                    // Éclaireur
+                    ctx.moveTo(0, this.radius);
+                    ctx.lineTo(this.radius, -this.radius * 0.6);
+                    ctx.lineTo(-this.radius, -this.radius * 0.6);
+                    ctx.closePath();
                 }
+                ctx.fill();
+                ctx.stroke();
+
+                // Cœur lumineux
+                ctx.fillStyle = activeColor;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.28, 0, Math.PI * 2);
+                ctx.fill();
 
                 ctx.restore();
             }
@@ -1304,75 +1456,56 @@
         class Boss {
             constructor(width, wave) {
                 this.x = width / 2;
-                this.y = -100;
-                this.targetY = 125;
-                this.radius = 58;
+                this.y = -90;
+                this.targetY = 135;
+                this.radius = 56;
                 this.wave = wave;
-                this.maxHp = 1400 + (wave * 450);
+                this.maxHp = Math.round(1400 * (1 + (wave / 5 - 1) * 0.65));
                 this.hp = this.maxHp;
                 this.timer = 0;
-                this.attackTimer = 1.5;
-                this.spiralAngle = 0;
                 this.hitFlash = 0;
-                this.score = 2500 * (wave / 5);
-                this.names = [
-                    "TITAN NÉON MK-I",
-                    "LÉVIATHAN CYBERNÉTIQUE",
-                    "SOUVERAIN DU VIDE",
-                    "OMÉGA SINGULARITÉ"
-                ];
-                this.name = this.names[Math.min(this.names.length - 1, Math.floor(wave / 5) - 1)];
+                this.shootTimer = 1.5;
+                this.radialTimer = 3.2;
+                this.name = wave >= 10 ? 'EMPEREUR OMEGA' : 'TITAN NÉON';
             }
 
             update(dt, player, game) {
                 this.timer += dt;
                 if (this.hitFlash > 0) this.hitFlash -= dt;
 
-                // Entrée dramatique
+                // Entrée dramatique puis balayage horizontal
                 if (this.y < this.targetY) {
-                    this.y += 90 * dt;
-                    return;
+                    this.y += 95 * dt;
+                } else {
+                    const span = Math.max(80, game.width * 0.34);
+                    this.x = game.width / 2 + Math.sin(this.timer * 1.15) * span;
                 }
 
-                // Déplacement horizontal ample
-                const amplitude = Math.max(80, (game.width / 2) - 110);
-                this.x = (game.width / 2) + Math.sin(this.timer * 0.9) * amplitude;
+                const isEnraged = this.hp < this.maxHp * 0.45;
+                const rateMult = isEnraged ? 0.68 : 1.0;
 
-                const hpRatio = this.hp / this.maxHp;
-                this.attackTimer -= dt;
+                // Tir ciblé en rafale
+                this.shootTimer -= dt;
+                if (this.shootTimer <= 0 && this.y >= this.targetY - 10) {
+                    this.shootTimer = 1.35 * rateMult;
+                    const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                    [-0.32, -0.16, 0, 0.16, 0.32].forEach(offset => {
+                        const a = baseAngle + offset;
+                        game.projectiles.push(new Projectile(this.x, this.y + 35, Math.cos(a) * 290, Math.sin(a) * 290, 18, '#ff0080', false));
+                    });
+                    game.sound.playEnemyShoot();
+                }
 
-                // Phase 1 (> 50% PV) : Éventails géométriques + tirs ciblés
-                if (hpRatio > 0.5) {
-                    if (this.attackTimer <= 0) {
-                        this.attackTimer = 1.35;
-                        const count = 7;
-                        for (let i = 0; i < count; i++) {
-                            const angle = Math.PI * 0.2 + (Math.PI * 0.6) * (i / (count - 1));
-                            game.projectiles.push(new Projectile(
-                                this.x, this.y + 40,
-                                Math.cos(angle) * 260,
-                                Math.sin(angle) * 260,
-                                18, '#ff0080', false
-                            ));
-                        }
-                        game.sound.playEnemyShoot();
+                // Nova radiale
+                this.radialTimer -= dt;
+                if (this.radialTimer <= 0 && this.y >= this.targetY - 10) {
+                    this.radialTimer = 3.4 * rateMult;
+                    const count = isEnraged ? 16 : 12;
+                    for (let i = 0; i < count; i++) {
+                        const a = (i / count) * Math.PI * 2 + this.timer;
+                        game.projectiles.push(new Projectile(this.x, this.y, Math.cos(a) * 210, Math.sin(a) * 210, 16, '#fbbf24', false));
                     }
-                } else {
-                    // Phase 2 (<= 50% PV - Enragé) : Spirale bullet-hell esquivable + salves rapides
-                    this.spiralAngle += dt * 4.5;
-                    if (this.attackTimer <= 0) {
-                        this.attackTimer = 0.14;
-                        for (let k = 0; k < 2; k++) {
-                            const a = this.spiralAngle + k * Math.PI;
-                            game.projectiles.push(new Projectile(
-                                this.x, this.y + 10,
-                                Math.cos(a) * 250,
-                                Math.sin(a) * 250,
-                                15, '#f59e0b', false
-                            ));
-                        }
-                        if (Math.random() < 0.25) game.sound.playEnemyShoot();
-                    }
+                    game.sound.playEnemyShoot();
                 }
             }
 
@@ -1380,39 +1513,52 @@
                 ctx.save();
                 ctx.translate(this.x, this.y);
 
-                const isEnraged = this.hp <= this.maxHp * 0.5;
-                const mainColor = this.hitFlash > 0 ? '#ffffff' : (isEnraged ? '#f59e0b' : '#ff0080');
+                const isEnraged = this.hp < this.maxHp * 0.45;
+                const primaryColor = this.hitFlash > 0 ? '#ffffff' : (isEnraged ? '#f43f5e' : '#ff0080');
 
-                ctx.strokeStyle = mainColor;
-                ctx.fillStyle = '#0c0618';
+                // Anneau externe rotatif
+                ctx.save();
+                ctx.rotate(this.timer * 0.8);
+                ctx.strokeStyle = '#00f3ff';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00f3ff';
+                ctx.beginPath();
+                for (let i = 0; i < 8; i++) {
+                    const a = (i * Math.PI) / 4;
+                    const px = Math.cos(a) * (this.radius + 10);
+                    const py = Math.sin(a) * (this.radius + 10);
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.restore();
+
+                // Coque principale du Boss
+                ctx.strokeStyle = primaryColor;
+                ctx.fillStyle = '#12071d';
                 ctx.lineWidth = 3.5;
                 ctx.shadowBlur = 25;
-                ctx.shadowColor = mainColor;
+                ctx.shadowColor = primaryColor;
 
-                // Structure extérieure colossale
                 ctx.beginPath();
-                ctx.moveTo(0, 58);
-                ctx.lineTo(68, 15);
-                ctx.lineTo(54, -40);
-                ctx.lineTo(0, -52);
-                ctx.lineTo(-54, -40);
-                ctx.lineTo(-68, 15);
+                ctx.moveTo(0, this.radius);
+                ctx.lineTo(this.radius * 1.15, 10);
+                ctx.lineTo(this.radius * 0.85, -this.radius * 0.8);
+                ctx.lineTo(0, -this.radius * 0.5);
+                ctx.lineTo(-this.radius * 0.85, -this.radius * 0.8);
+                ctx.lineTo(-this.radius * 1.15, 10);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // Anneau énergétique interne rotatif
-                ctx.save();
-                ctx.rotate(this.timer * (isEnraged ? 3 : 1.2));
-                ctx.strokeStyle = '#00f3ff';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(-26, -26, 52, 52);
-                ctx.restore();
-
-                // Coeur du Boss
-                ctx.fillStyle = mainColor;
+                // Réacteur central pulsant
+                const coreRadius = 16 + Math.sin(this.timer * 8) * 3;
+                ctx.fillStyle = '#fbbf24';
+                ctx.shadowColor = '#fbbf24';
                 ctx.beginPath();
-                ctx.arc(0, 5, 16 + Math.sin(this.timer * 8) * 3, 0, Math.PI * 2);
+                ctx.arc(0, 0, coreRadius, 0, Math.PI * 2);
                 ctx.fill();
 
                 ctx.restore();
@@ -1423,18 +1569,21 @@
             constructor(x, y, type) {
                 this.x = x;
                 this.y = y;
-                this.type = type; // 'spread', 'laser', 'shield', 'drone'
-                this.radius = 16;
-                this.vy = 110;
+                this.type = type; // 'spread', 'laser', 'shield', 'drone', 'chassis'
+                this.radius = type === 'chassis' ? 19 : 16;
+                this.vy = 115;
                 this.timer = 0;
 
-                const configs = {
+                const config = {
                     spread: { color: '#00f3ff', label: 'W', title: 'TIR MULTIPLE' },
                     laser: { color: '#ff0080', label: 'L', title: 'LASER PERFORANT' },
-                    shield: { color: '#10b981', label: '+', title: 'RÉPARATION COQUE' },
-                    drone: { color: '#fbbf24', label: 'D', title: 'DRONE ALLIÉ' }
+                    shield: { color: '#10b981', label: '+', title: 'COQUE RÉPARÉE' },
+                    drone: { color: '#fbbf24', label: 'D', title: 'DRONE ALLIÉ' },
+                    chassis: { color: '#f59e0b', label: '▲', title: 'ÉVOLUTION VAISSEAU' }
                 };
-                this.config = configs[type];
+                this.color = config[type].color;
+                this.label = config[type].label;
+                this.title = config[type].title;
             }
 
             update(dt) {
@@ -1445,25 +1594,35 @@
             draw(ctx) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                const pulse = 1 + Math.sin(this.timer * 7) * 0.12;
+
+                const pulse = 1 + Math.sin(this.timer * 7) * 0.14;
                 ctx.scale(pulse, pulse);
 
-                ctx.strokeStyle = this.config.color;
-                ctx.fillStyle = 'rgba(10, 15, 30, 0.85)';
-                ctx.lineWidth = 2.5;
-                ctx.shadowBlur = 16;
-                ctx.shadowColor = this.config.color;
+                // Anneau rotatif
+                ctx.save();
+                ctx.rotate(this.timer * 2.5);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.type === 'chassis' ? 3 : 2.5;
+                ctx.shadowBlur = this.type === 'chassis' ? 22 : 16;
+                ctx.shadowColor = this.color;
+                ctx.strokeRect(-12, -12, 24, 24);
+                ctx.restore();
 
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                // Halo externe pour les évolutions de châssis
+                if (this.type === 'chassis') {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
 
+                // Icône centrale
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 14px "Orbitron", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(this.config.label, 0, 1);
+                ctx.fillText(this.label, 0, 1);
 
                 ctx.restore();
             }
@@ -1476,149 +1635,147 @@
             constructor() {
                 this.canvas = document.getElementById('gameCanvas');
                 this.ctx = this.canvas.getContext('2d');
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+
                 this.sound = new SoundEngine();
                 this.input = new InputManager(this.canvas, () => this.triggerEMP());
-                // Sauvegarde persistante (Record, Niveau, XP, Renaissances)
-                this.highScore = parseInt(localStorage.getItem('neon_nova_highscore') || '0', 10);
-                this.level = parseInt(localStorage.getItem('neon_nova_level') || '1', 10);
-                this.xp = parseInt(localStorage.getItem('neon_nova_xp') || '0', 10);
-                this.rebirths = parseInt(localStorage.getItem('neon_nova_rebirths') || '0', 10);
-                this.resetConfirmArmed = false;
+                this.player = new Player(this.width / 2, this.height * 0.8);
 
-                // Variables de session
+                // État de jeu
+                this.state = 'MENU'; // 'MENU', 'PLAYING', 'GAMEOVER'
                 this.score = 0;
-                this.sessionXp = 0;
-                this.sessionLevelsGained = 0;
-                this.kills = 0;
+                this.highScore = parseInt(localStorage.getItem('neonNovaHighScore') || '0', 10);
                 this.wave = 1;
+                this.kills = 0;
+
+                // Système de Niveaux (XP liée au score) & Renaissances persistantes
+                this.level = parseInt(localStorage.getItem('neonNovaLevel') || '1', 10);
+                this.xp = parseInt(localStorage.getItem('neonNovaXp') || '0', 10);
+                this.rebirths = parseInt(localStorage.getItem('neonNovaRebirths') || '0', 10);
+                this.sessionXpGained = 0;
+                this.sessionLevelsGained = 0;
+
+                // Système de combo & EMP
                 this.multiplier = 1;
                 this.comboTimer = 0;
-                this.maxComboTime = 4.0;
+                this.maxComboTime = 3.5;
                 this.empCharge = 0; // 0 à 100
 
-                // Effets de caméra et temps ("Juice")
-                this.shakeTime = 0;
-                this.shakeIntensity = 0;
-                this.hitStopTimer = 0; // Ralenti bref sur gros impact
-                this.gridOffset = 0;
-
-                // Collections d'entités
-                this.stars = [];
-                this.player = new Player(this.width / 2, this.height * 0.8);
+                // Entités actives
                 this.projectiles = [];
                 this.enemies = [];
+                this.boss = null;
                 this.powerUps = [];
                 this.particles = [];
                 this.shockwaves = [];
                 this.floatingTexts = [];
-                this.boss = null;
 
-                // Gestionnaire de vagues
+                // Gestion des vagues
                 this.enemiesToSpawn = [];
                 this.spawnTimer = 0;
                 this.waveClearDelay = 0;
 
+                // Effets de caméra et temps
+                this.shakeTime = 0;
+                this.shakeIntensity = 0;
+                this.hitStopTimer = 0;
+                this.gridOffset = 0;
+
+                // Étoiles de fond en parallaxe
+                this.stars = [];
                 this.initStars();
-                this.resize();
+
+                // Synchronisation des bonus liés au niveau et aux renaissances
                 this.applyProgressionStats();
+
+                // Liaison UI et redimensionnement
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
                 this.bindUI();
                 this.updateProgressionUI();
 
+                // Démarrage de la boucle
                 this.lastTime = performance.now();
                 requestAnimationFrame((t) => this.loop(t));
             }
 
             // ========================================================================
-            // SYSTÈME DE NIVEAUX, EXPÉRIENCE & RENAISSANCE (PRESTIGE)
+            // GESTION DES NIVEAUX (XP), RENAISSANCES & ÉQUILIBRAGE
             // ========================================================================
-            getXpRequired(lvl = this.level) {
-                // Courbe progressive équilibrée : 1500 XP pour niv 2, +22% par niveau
+            getXpRequiredForNextLevel(lvl = this.level) {
                 return Math.floor(1500 * Math.pow(1.22, lvl - 1));
             }
 
             getRebirthMultiplier() {
-                // x1.25 cumulatif à chaque renaissance (1.25^N)
                 return Math.pow(1.25, this.rebirths);
             }
 
-            getLevelScoreBonus() {
-                // +2% de score/XP par niveau au-delà du niveau 1
-                return 1 + (this.level - 1) * 0.02;
-            }
-
             getTotalScoreMultiplier() {
-                return this.getRebirthMultiplier() * this.getLevelScoreBonus();
-            }
-
-            getDamageMultiplier() {
-                // Bonus de dégâts équilibré : +2% par niveau + bonus progressif de renaissance
+                // Boost Renaissance x1.25 cumulatif + léger bonus de niveau (+2% par niveau)
                 const levelBonus = 1 + (this.level - 1) * 0.02;
-                const rebirthDmgBonus = 1 + (this.getRebirthMultiplier() - 1) * 0.65;
-                return levelBonus * rebirthDmgBonus;
-            }
-
-            getRequiredLevelForRebirth() {
-                // Renaissance 1 = Niveau 10, Renaissance 2 = Niveau 20, etc.
-                return (this.rebirths + 1) * 10;
+                return this.getRebirthMultiplier() * levelBonus;
             }
 
             canRebirth() {
-                return this.level >= this.getRequiredLevelForRebirth();
+                return this.level >= 10;
             }
 
-            getPilotRankInfo() {
-                const ranks = [
-                    { title: 'PILOTE RECRUE', color: '#00f3ff' },
-                    { title: 'CYBER-AS ★', color: '#34d399' },
-                    { title: 'SPECTRE NÉON ★★', color: '#a855f7' },
-                    { title: 'VALKYRIE SOLAIRE ★★★', color: '#fbbf24' },
-                    { title: 'ENTITÉ COSMIQUE ★★★★', color: '#ff0080' },
-                    { title: 'DIVINITÉ OMÉGA ★★★★★', color: '#f97316' }
+            getPilotTitle() {
+                const titles = [
+                    'PILOTE RECRUE',
+                    'CHASSEUR ORBITAL',
+                    'AS DE LA NÉBULEUSE',
+                    'SEIGNEUR CYBERNÉTIQUE',
+                    'AVATAR STELLAIRE',
+                    'DIVINITÉ SUPERNOVA'
                 ];
-                return ranks[Math.min(ranks.length - 1, this.rebirths)];
+                return titles[Math.min(titles.length - 1, this.rebirths)];
+            }
+
+            getRebirthAuraColor() {
+                const auras = ['#00f3ff', '#10b981', '#a855f7', '#fbbf24', '#ff0080', '#ffffff'];
+                return auras[Math.min(auras.length - 1, this.rebirths)];
             }
 
             applyProgressionStats() {
-                const rank = this.getPilotRankInfo();
-                this.player.damageMultiplier = this.getDamageMultiplier();
-                this.player.auraColor = rank.color;
+                // Équilibrage : chaque renaissance renforce la puissance de feu (+15%) et le niveau ajoute +3%
+                const rebirthDmgBoost = 1 + this.rebirths * 0.15;
+                const levelDmgBoost = 1 + (this.level - 1) * 0.03;
+                this.player.damageMultiplier = rebirthDmgBoost * levelDmgBoost;
+                this.player.auraColor = this.getRebirthAuraColor();
             }
 
             saveProgression() {
-                localStorage.setItem('neon_nova_highscore', this.highScore.toString());
-                localStorage.setItem('neon_nova_level', this.level.toString());
-                localStorage.setItem('neon_nova_xp', Math.floor(this.xp).toString());
-                localStorage.setItem('neon_nova_rebirths', this.rebirths.toString());
+                localStorage.setItem('neonNovaLevel', this.level.toString());
+                localStorage.setItem('neonNovaXp', this.xp.toString());
+                localStorage.setItem('neonNovaRebirths', this.rebirths.toString());
             }
 
             addExperience(amount) {
                 if (amount <= 0) return;
                 this.xp += amount;
-                this.sessionXp += amount;
+                this.sessionXpGained += amount;
 
                 let leveledUp = false;
-                let req = this.getXpRequired(this.level);
-
-                while (this.xp >= req) {
-                    this.xp -= req;
+                while (this.xp >= this.getXpRequiredForNextLevel(this.level)) {
+                    this.xp -= this.getXpRequiredForNextLevel(this.level);
                     this.level++;
                     this.sessionLevelsGained++;
                     leveledUp = true;
-                    req = this.getXpRequired(this.level);
                 }
 
                 if (leveledUp) {
-                    this.applyProgressionStats();
                     this.sound.playLevelUp();
-                    this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 130, '#fbbf24', 0.55, 5));
-                    this.floatingTexts.push(new FloatingText(this.player.x, this.player.y - 35, `LEVEL UP ! NIV.${this.level}`, '#fbbf24'));
-
-                    // Réparation partielle de coque offerte lors d'une montée de niveau
-                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 20);
+                    this.applyProgressionStats();
+                    // Régénération de 25% de coque à chaque montée de niveau
+                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 25);
                     this.player.shieldPulse = 1.0;
+                    this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 130, '#fbbf24', 0.55, 4));
+                    this.floatingTexts.push(new FloatingText(this.player.x, this.player.y - 30, `LEVEL UP ! NIV.${this.level}`, '#fbbf24'));
 
-                    if (this.canRebirth()) {
-                        this.showBanner(`NIVEAU ${this.level} ATTEINT !`, `RENAISSANCE DISPONIBLE AU MENU`, false);
+                    if (this.level % 10 === 0) {
+                        this.showBanner(`NIVEAU ${this.level} ATTEINT !`, 'RENAISSANCE DISPONIBLE AU MENU (x1.25)');
                     }
                 }
 
@@ -1626,128 +1783,96 @@
                 this.updateProgressionUI();
             }
 
-            openRebirthModal() {
-                if (!this.canRebirth()) return;
-                const nextRebirth = this.rebirths + 1;
-                const oldMult = this.getRebirthMultiplier();
-                const newMult = Math.pow(1.25, nextRebirth);
-
-                document.getElementById('modalNextRebirth').textContent = nextRebirth;
-                document.getElementById('modalOldMult').textContent = `x${oldMult.toFixed(2)}`;
-                document.getElementById('modalNewMult').textContent = `x${newMult.toFixed(2)}`;
-
-                const nextRankIdx = Math.min(5, nextRebirth);
-                const nextRankNames = ['PILOTE RECRUE', 'CYBER-AS (Aura Émeraude)', 'SPECTRE NÉON (Aura Plasma)', 'VALKYRIE SOLAIRE (Aura Or)', 'ENTITÉ COSMIQUE (Aura Magenta)', 'DIVINITÉ OMÉGA (Aura Solaire)'];
-                document.getElementById('modalNewAura').textContent = nextRankNames[nextRankIdx];
-
-                document.getElementById('rebirthModal').classList.remove('hidden');
-            }
-
             performRebirth() {
                 if (!this.canRebirth()) return;
-
                 this.sound.init();
                 this.sound.playRebirth();
 
-                // Reset des niveaux et de l'XP, incrément de la Renaissance
                 this.rebirths++;
                 this.level = 1;
                 this.xp = 0;
 
-                this.applyProgressionStats();
                 this.saveProgression();
+                this.applyProgressionStats();
                 this.updateProgressionUI();
-
-                document.getElementById('rebirthModal').classList.add('hidden');
-
-                // Si déclenché depuis l'écran Game Over, on retourne au menu principal pour admirer le nouveau rang
-                if (this.state === 'GAMEOVER') {
-                    document.getElementById('gameOverScreen').classList.add('hidden');
-                    document.getElementById('startScreen').classList.remove('hidden');
-                    this.state = 'MENU';
-                }
-
-                // Effet visuel de célébration sur le canevas d'arrière-plan
-                this.createExplosion(this.width / 2, this.height / 2, '#fbbf24', 60, 'boss');
+                this.updateHUD();
             }
 
             updateProgressionUI() {
-                const reqXp = this.getXpRequired(this.level);
-                const xpPct = Math.min(100, Math.round((this.xp / reqXp) * 100));
+                const reqXp = this.getXpRequiredForNextLevel(this.level);
+                const pct = Math.min(100, (this.xp / reqXp) * 100);
                 const rebirthMult = this.getRebirthMultiplier();
                 const totalScoreMult = this.getTotalScoreMultiplier();
-                const dmgBonusPct = Math.round((this.getDamageMultiplier() - 1) * 100);
-                const rank = this.getPilotRankInfo();
-                const reqLevel = this.getRequiredLevelForRebirth();
+                const dmgBonusPct = Math.round((this.player.damageMultiplier - 1) * 100);
+                const pilotTitle = this.getPilotTitle();
                 const ready = this.canRebirth();
 
-                // 1. Mise à jour du HUD en jeu
-                document.getElementById('hudLevelBadge').textContent = `LVL ${this.level}`;
-                document.getElementById('hudRebirthBadge').textContent = `★ R${this.rebirths}`;
-                document.getElementById('hudTotalBoost').textContent = `x${totalScoreMult.toFixed(2)}`;
-                document.getElementById('hudPilotTitle').textContent = rank.title;
-                document.getElementById('hudPilotTitle').style.color = rank.color;
-                document.getElementById('hudXpText').textContent = `${Math.floor(this.xp).toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
-                document.getElementById('hudXpBar').style.width = `${xpPct}%`;
-                document.getElementById('hudRebirthReadyTag').classList.toggle('hidden', !ready);
-
-                // 2. Mise à jour de la Carte Pilote du Menu Principal
-                document.getElementById('menuPilotTitle').textContent = rank.title;
-                document.getElementById('menuPilotTitle').style.color = rank.color;
+                // Mise à jour Menu Principal
+                document.getElementById('menuPilotTitle').textContent = pilotTitle;
                 document.getElementById('menuLevel').textContent = this.level;
                 document.getElementById('menuRebirths').textContent = this.rebirths;
-                document.getElementById('menuXpText').textContent = `${Math.floor(this.xp).toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
-                document.getElementById('menuXpBar').style.width = `${xpPct}%`;
-
+                document.getElementById('menuXpText').textContent = `${this.xp.toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
+                document.getElementById('menuXpBar').style.width = `${pct}%`;
                 document.getElementById('menuRebirthMult').textContent = `x${rebirthMult.toFixed(2)}`;
                 document.getElementById('menuScoreBonus').textContent = `x${totalScoreMult.toFixed(2)}`;
                 document.getElementById('menuDamageBonus').textContent = `+${dmgBonusPct}%`;
+                document.getElementById('menuHighScore').textContent = this.highScore.toLocaleString('fr-FR');
 
-                const rebirthBtn = document.getElementById('menuRebirthBtn');
-                const rebirthTitle = document.getElementById('menuRebirthBtnTitle');
-                const rebirthSub = document.getElementById('menuRebirthBtnSub');
+                // État du bouton de Renaissance dans le Menu
+                const rBtn = document.getElementById('menuRebirthBtn');
+                const rTitle = document.getElementById('menuRebirthBtnTitle');
+                const rSub = document.getElementById('menuRebirthBtnSub');
+                const nextMult = Math.pow(1.25, this.rebirths + 1);
 
                 if (ready) {
-                    rebirthBtn.disabled = false;
-                    rebirthBtn.className = 'w-full py-3 px-4 rounded-xl rebirth-btn-ready text-white font-cyber text-xs sm:text-sm font-black tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
-                    rebirthTitle.textContent = `🔥 RENAISSANCE DISPONIBLE (RANG ${this.rebirths + 1})`;
-                    rebirthSub.textContent = `Reset Niveau 1 • Boost permanent : x${rebirthMult.toFixed(2)} ➔ x${Math.pow(1.25, this.rebirths + 1).toFixed(2)}`;
-                    rebirthSub.className = 'font-sans text-[11px] font-bold text-amber-200';
+                    rBtn.disabled = false;
+                    rBtn.className = 'w-full py-2.5 px-4 rounded-xl rebirth-btn-ready text-white font-cyber text-xs sm:text-sm font-black tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+                    rTitle.textContent = `🔥 RENAÎTRE (RANG ${this.rebirths + 1}) — DISPONIBLE !`;
+                    rSub.textContent = `Reset Niveau 1 ➔ Boost permanent x${nextMult.toFixed(2)} (Actuel : x${rebirthMult.toFixed(2)})`;
+                    rSub.className = 'font-sans text-[11px] font-bold text-amber-200';
                 } else {
-                    rebirthBtn.disabled = true;
-                    rebirthBtn.className = 'w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-900/60 text-slate-400 font-cyber text-xs sm:text-sm font-bold tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-not-allowed';
-                    rebirthTitle.textContent = `RENAISSANCE ${this.rebirths + 1} (NIVEAU ${this.level} / ${reqLevel})`;
-                    rebirthSub.textContent = `Atteignez le Niveau ${reqLevel} pour renaître (Gain permanent : x1.25)`;
-                    rebirthSub.className = 'font-sans text-[11px] font-normal text-slate-400';
+                    const nextMilestone = Math.max(10, Math.ceil((this.level + 1) / 10) * 10);
+                    rBtn.disabled = true;
+                    rBtn.className = 'w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-900/60 text-slate-400 font-cyber text-xs sm:text-sm font-bold tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-not-allowed';
+                    rTitle.textContent = `RENAISSANCE VERROUILLÉE (NIV. ${this.level}/10)`;
+                    rSub.textContent = `Atteignez le Niveau ${nextMilestone} pour débloquer le boost x${nextMult.toFixed(2)}`;
+                    rSub.className = 'font-sans text-[11px] font-normal text-slate-400';
+                }
+
+                // Mise à jour HUD en jeu
+                document.getElementById('hudRebirthBadge').textContent = `★ R${this.rebirths}`;
+                document.getElementById('hudLevelBadge').textContent = `LVL ${this.level}`;
+                document.getElementById('hudTotalBoost').textContent = `x${totalScoreMult.toFixed(2)}`;
+                document.getElementById('hudPilotTitle').textContent = pilotTitle;
+                document.getElementById('hudXpText').textContent = `${this.xp.toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
+                document.getElementById('hudXpBar').style.width = `${pct}%`;
+                document.getElementById('hudRebirthReadyTag').classList.toggle('hidden', !ready);
+            }
+
+            initStars() {
+                this.stars = [];
+                const colors = ['#ffffff', '#00f3ff', '#ff0080', '#a855f7'];
+                for (let i = 0; i < 95; i++) {
+                    this.stars.push({
+                        x: Math.random() * this.width,
+                        y: Math.random() * this.height,
+                        size: Math.random() * 2.2 + 0.6,
+                        speed: Math.random() * 140 + 30,
+                        color: colors[Math.floor(Math.random() * colors.length)]
+                    });
                 }
             }
 
             resize() {
                 this.width = window.innerWidth;
                 this.height = window.innerHeight;
-                this.canvas.width = this.width;
-                this.canvas.height = this.height;
-            }
-
-            initStars() {
-                this.stars = [];
-                for (let i = 0; i < 110; i++) {
-                    this.stars.push({
-                        x: Math.random() * this.width,
-                        y: Math.random() * this.height,
-                        size: Math.random() * 2 + 0.5,
-                        speed: Math.random() * 140 + 30,
-                        color: Math.random() > 0.8 ? '#00f3ff' : (Math.random() > 0.85 ? '#ff0080' : '#ffffff')
-                    });
-                }
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                this.canvas.width = this.width * dpr;
+                this.canvas.height = this.height * dpr;
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             }
 
             bindUI() {
-                window.addEventListener('resize', () => this.resize());
-
-                document.getElementById('menuHighScore').textContent = this.highScore.toLocaleString('fr-FR');
-                document.getElementById('hudHighScore').textContent = this.highScore.toLocaleString('fr-FR');
-
                 document.getElementById('startBtn').addEventListener('click', () => {
                     this.sound.init();
                     this.startGame();
@@ -1760,59 +1885,66 @@
 
                 document.getElementById('backToMenuBtn').addEventListener('click', () => {
                     document.getElementById('gameOverScreen').classList.add('hidden');
+                    document.getElementById('hud').classList.add('hidden');
                     document.getElementById('startScreen').classList.remove('hidden');
                     this.state = 'MENU';
                     this.updateProgressionUI();
                 });
 
-                // Gestion de la Renaissance
-                document.getElementById('menuRebirthBtn').addEventListener('click', () => {
-                    this.sound.init();
-                    this.openRebirthModal();
-                });
+                // Ouverture de la modale de confirmation de Renaissance (Menu & Game Over)
+                const openRebirthModal = () => {
+                    if (!this.canRebirth()) return;
+                    const oldMult = this.getRebirthMultiplier();
+                    const newMult = Math.pow(1.25, this.rebirths + 1);
+                    document.getElementById('modalNextRebirth').textContent = this.rebirths + 1;
+                    document.getElementById('modalOldMult').textContent = `x${oldMult.toFixed(2)}`;
+                    document.getElementById('modalNewMult').textContent = `x${newMult.toFixed(2)}`;
+                    document.getElementById('rebirthModal').classList.remove('hidden');
+                };
 
-                document.getElementById('gameOverRebirthBtn').addEventListener('click', () => {
-                    this.sound.init();
-                    this.openRebirthModal();
-                });
+                document.getElementById('menuRebirthBtn').addEventListener('click', openRebirthModal);
+                document.getElementById('gameOverRebirthBtn').addEventListener('click', openRebirthModal);
 
                 document.getElementById('cancelRebirthBtn').addEventListener('click', () => {
                     document.getElementById('rebirthModal').classList.add('hidden');
                 });
 
                 document.getElementById('confirmRebirthBtn').addEventListener('click', () => {
+                    document.getElementById('rebirthModal').classList.add('hidden');
                     this.performRebirth();
+                    // Si déclenché depuis l'écran Game Over, retour propre au menu mis à jour
+                    if (!document.getElementById('gameOverScreen').classList.contains('hidden')) {
+                        document.getElementById('gameOverScreen').classList.add('hidden');
+                        document.getElementById('startScreen').classList.remove('hidden');
+                        this.state = 'MENU';
+                    }
                 });
 
-                // Réinitialisation de la sauvegarde (double clic sécurisé sans confirm())
+                // Réinitialisation complète (confirmation en 2 clics sans window.confirm)
+                let resetConfirmArmed = false;
                 const resetBtn = document.getElementById('resetProgressBtn');
                 resetBtn.addEventListener('click', () => {
-                    if (!this.resetConfirmArmed) {
-                        this.resetConfirmArmed = true;
+                    if (!resetConfirmArmed) {
+                        resetConfirmArmed = true;
                         resetBtn.textContent = 'SÛR ?';
                         resetBtn.classList.add('border-red-500', 'text-red-400');
                         setTimeout(() => {
-                            this.resetConfirmArmed = false;
+                            resetConfirmArmed = false;
                             resetBtn.textContent = 'RAZ';
                             resetBtn.classList.remove('border-red-500', 'text-red-400');
                         }, 3000);
                     } else {
-                        this.resetConfirmArmed = false;
+                        resetConfirmArmed = false;
                         resetBtn.textContent = 'RAZ';
                         this.level = 1;
                         this.xp = 0;
                         this.rebirths = 0;
                         this.highScore = 0;
-                        this.applyProgressionStats();
+                        localStorage.setItem('neonNovaHighScore', '0');
                         this.saveProgression();
+                        this.applyProgressionStats();
                         this.updateProgressionUI();
-                        document.getElementById('menuHighScore').textContent = '0';
-                        document.getElementById('hudHighScore').textContent = '0';
                     }
-                });
-
-                document.getElementById('empMobileBtn').addEventListener('click', () => {
-                    this.triggerEMP();
                 });
 
                 document.getElementById('muteBtn').addEventListener('click', () => {
@@ -1821,22 +1953,28 @@
                     document.getElementById('iconSoundOn').classList.toggle('hidden', isMuted);
                     document.getElementById('iconSoundOff').classList.toggle('hidden', !isMuted);
                 });
+
+                document.getElementById('empMobileBtn').addEventListener('click', () => {
+                    if (this.state === 'PLAYING') {
+                        this.triggerEMP();
+                    }
+                });
             }
 
             startGame() {
                 this.state = 'PLAYING';
                 this.score = 0;
-                this.sessionXp = 0;
-                this.sessionLevelsGained = 0;
-                this.kills = 0;
                 this.wave = 1;
+                this.kills = 0;
+                this.sessionXpGained = 0;
+                this.sessionLevelsGained = 0;
                 this.multiplier = 1;
                 this.comboTimer = 0;
-                this.empCharge = 35; // Démarre avec un léger bonus d'EMP
-                this.boss = null;
+                this.empCharge = 35; // Charge initiale partielle
 
                 this.projectiles = [];
                 this.enemies = [];
+                this.boss = null;
                 this.powerUps = [];
                 this.particles = [];
                 this.shockwaves = [];
@@ -1864,141 +2002,125 @@
 
                 // Toutes les 5 vagues : Combat de Boss !
                 if (waveNum % 5 === 0) {
-                    this.showBanner(`ALERTE BOSS`, `VAGUE ${waveNum} - MENACE CRITIQUE`, true);
-                    this.sound.playBossAlert();
                     this.boss = new Boss(this.width, waveNum);
+                    this.sound.playBossAlert();
+                    this.showBanner('ALERTE BOSS', `${this.boss.name} APPROCHE !`);
                     document.getElementById('bossName').textContent = this.boss.name;
-                    document.getElementById('bossHud').classList.remove('hidden');
                     this.updateBossHUD();
-                } else {
-                    this.showBanner(`VAGUE ${waveNum}`, `SECTEUR HOSTILE DÉTECTÉ`, false);
-                    this.enemiesToSpawn = [];
-                    const count = 6 + waveNum * 3;
-                    const waveScale = 1 + (waveNum - 1) * 0.14;
-
-                    for (let i = 0; i < count; i++) {
-                        let type = 'chaser';
-                        const r = Math.random();
-                        if (waveNum >= 2 && r > 0.65) type = 'drone';
-                        if (waveNum >= 3 && r > 0.82) type = 'tank';
-                        if (waveNum >= 4 && r > 0.90) type = 'kamikaze';
-                        this.enemiesToSpawn.push({ type, waveScale });
-                    }
-                    this.spawnTimer = 0.8;
+                    document.getElementById('bossHud').classList.remove('hidden');
+                    return;
                 }
+
+                this.showBanner(`VAGUE ${waveNum}`, waveNum === 1 ? 'ÉLIMINEZ LA FLOTTE HOSTILE' : 'INTENSITÉ EN HAUSSE');
+
+                // Génération de la file d'attente des ennemis de la vague
+                const count = 6 + waveNum * 3;
+                const waveScale = 1 + (waveNum - 1) * 0.14;
+                this.enemiesToSpawn = [];
+
+                for (let i = 0; i < count; i++) {
+                    let type = 'scout';
+                    const roll = Math.random();
+                    if (waveNum >= 4 && roll < 0.18) type = 'tank';
+                    else if (waveNum >= 3 && roll < 0.42) type = 'shooter';
+                    else if (waveNum >= 2 && roll < 0.68) type = 'weaver';
+
+                    this.enemiesToSpawn.push({ type, waveScale });
+                }
+                this.spawnTimer = 0.6;
             }
 
-            showBanner(title, subtitle, isDanger = false) {
+            showBanner(title, sub) {
                 const banner = document.getElementById('centerBanner');
-                const titleEl = document.getElementById('bannerTitle');
-                const subEl = document.getElementById('bannerSub');
-
-                titleEl.textContent = title;
-                subEl.textContent = subtitle;
-
-                if (isDanger) {
-                    titleEl.className = 'font-cyber text-4xl sm:text-6xl font-black tracking-wider text-pink-500 neon-text-pink uppercase';
-                } else {
-                    titleEl.className = 'font-cyber text-4xl sm:text-6xl font-black tracking-wider text-white neon-text-cyan uppercase';
-                }
+                document.getElementById('bannerTitle').textContent = title;
+                document.getElementById('bannerSub').textContent = sub;
 
                 banner.classList.remove('opacity-0', 'scale-90');
                 banner.classList.add('opacity-100', 'scale-100');
 
-                setTimeout(() => {
+                clearTimeout(this.bannerTimeout);
+                this.bannerTimeout = setTimeout(() => {
                     banner.classList.remove('opacity-100', 'scale-100');
                     banner.classList.add('opacity-0', 'scale-90');
-                }, 2200);
+                }, 2000);
             }
 
-            // Déclenche l'Onde EMP si la jauge est à 100%
             triggerEMP() {
                 if (this.state !== 'PLAYING' || this.empCharge < 100) return;
 
                 this.empCharge = 0;
+                this.updateHUD();
                 this.sound.playEMP();
-                this.addScreenShake(0.6, 18);
-                this.hitStopTimer = 0.08;
+                this.addScreenShake(18, 0.45);
 
                 // Onde de choc géante
-                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, Math.max(this.width, this.height), '#00f3ff', 0.8, 8));
-                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, Math.max(this.width, this.height) * 0.7, '#ff0080', 0.6, 5));
+                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, Math.max(this.width, this.height) * 0.85, '#ff0080', 0.7, 8));
+                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, Math.max(this.width, this.height) * 0.65, '#00f3ff', 0.55, 5));
 
-                // Détruit tous les projectiles ennemis
-                this.projectiles = this.projectiles.filter(p => p.isPlayer);
+                // Détruit tous les tirs ennemis
+                for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                    if (!this.projectiles[i].isPlayer) {
+                        const p = this.projectiles[i];
+                        this.spawnParticle(p.x, p.y, (Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120, '#ff0080', 4, 0.35);
+                        this.projectiles.splice(i, 1);
+                    }
+                }
 
-                // Inflige des dégâts massifs à tous les ennemis à l'écran
+                // Inflige de lourds dégâts à tous les ennemis visibles
                 for (let i = this.enemies.length - 1; i >= 0; i--) {
                     const enemy = this.enemies[i];
-                    enemy.hp -= 250;
+                    enemy.hp -= 140 * this.player.damageMultiplier;
                     enemy.hitFlash = 0.2;
                     if (enemy.hp <= 0) {
                         this.killEnemy(enemy, i);
                     }
                 }
 
+                // Dégâts au Boss
                 if (this.boss) {
-                    this.boss.hp -= 450;
-                    this.boss.hitFlash = 0.25;
-                    this.floatingTexts.push(new FloatingText(this.boss.x, this.boss.y, "-450 EMP!", "#00f3ff"));
+                    this.boss.hp -= 280 * this.player.damageMultiplier;
+                    this.boss.hitFlash = 0.2;
+                    this.updateBossHUD();
                     this.checkBossDeath();
                 }
 
-                this.updateHUD();
-            }
-
-            addScreenShake(duration, intensity) {
-                this.shakeTime = Math.max(this.shakeTime, duration);
-                this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
-            }
-
-            spawnParticle(x, y, vx, vy, color, size, life) {
-                if (this.particles.length > 350) return; // Limite pour maintenir 60 FPS
-                this.particles.push(new Particle(x, y, vx, vy, color, size, life));
-            }
-
-            createExplosion(x, y, color, count = 20, size = 'small') {
-                this.sound.playExplosion(size);
-                this.shockwaves.push(new Shockwave(x, y, size === 'boss' ? 180 : (size === 'large' ? 85 : 45), color, 0.4));
-
-                for (let i = 0; i < count; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const speed = (Math.random() * 260 + 50) * (size === 'boss' ? 1.8 : 1);
-                    this.spawnParticle(
-                        x, y,
-                        Math.cos(angle) * speed,
-                        Math.sin(angle) * speed,
-                        i % 3 === 0 ? '#ffffff' : color,
-                        Math.random() * 4 + 2,
-                        Math.random() * 0.4 + 0.25
-                    );
-                }
+                this.floatingTexts.push(new FloatingText(this.player.x, this.player.y - 35, 'ONDE EMP DÉCLENCHÉE !', '#ff0080'));
             }
 
             killEnemy(enemy, index) {
                 this.enemies.splice(index, 1);
                 this.kills++;
 
-                // Combo et score multipliés par le boost de Renaissance & Niveau
-                this.comboTimer = this.maxComboTime;
+                // Augmentation du multiplicateur de combo
                 this.multiplier = Math.min(12, this.multiplier + 1);
-                const points = Math.round(enemy.score * this.multiplier * this.getTotalScoreMultiplier());
+                this.comboTimer = this.maxComboTime;
+
+                const points = Math.round(enemy.points * this.multiplier * this.getTotalScoreMultiplier());
                 this.score += points;
                 this.addExperience(points);
 
                 // Recharge EMP
-                this.empCharge = Math.min(100, this.empCharge + 7);
+                this.empCharge = Math.min(100, this.empCharge + (enemy.type === 'tank' ? 18 : 8));
 
+                // Effets visuels et sonores
                 const isLarge = enemy.type === 'tank';
-                this.createExplosion(enemy.x, enemy.y, enemy.color, isLarge ? 35 : 18, isLarge ? 'large' : 'small');
-                this.addScreenShake(isLarge ? 0.3 : 0.12, isLarge ? 10 : 4);
-                if (isLarge) this.hitStopTimer = 0.04;
+                this.createExplosion(enemy.x, enemy.y, enemy.color, isLarge ? 32 : 18, isLarge ? 'large' : 'small');
+                if (isLarge) {
+                    this.addScreenShake(10, 0.25);
+                    this.hitStopTimer = 0.03;
+                } else {
+                    this.addScreenShake(4, 0.12);
+                }
 
                 this.floatingTexts.push(new FloatingText(enemy.x, enemy.y, `+${points.toLocaleString('fr-FR')}`, enemy.color));
 
-                // Probabilité de larguer un bonus (Power-Up)
-                if (Math.random() < (isLarge ? 0.45 : 0.16)) {
+                // Probabilité de larguer un bonus (Power-Up ou Module d'Évolution de Vaisseau)
+                if (Math.random() < (isLarge ? 0.50 : 0.18)) {
                     const types = ['spread', 'laser', 'shield', 'drone'];
+                    // Chance de faire tomber une amélioration d'apparence de vaisseau (si pas encore au Tier max 3)
+                    if (this.player.shipTier < 3 && Math.random() < (isLarge ? 0.35 : 0.22)) {
+                        types.push('chassis', 'chassis');
+                    }
                     const chosen = types[Math.floor(Math.random() * types.length)];
                     this.powerUps.push(new PowerUp(enemy.x, enemy.y, chosen));
                 }
@@ -2012,24 +2134,23 @@
                 const b = this.boss;
                 this.boss = null;
                 this.kills++;
-                const bossPoints = Math.round(b.score * this.multiplier * this.getTotalScoreMultiplier());
+
+                const bossPoints = Math.round(3500 * this.multiplier * this.getTotalScoreMultiplier());
                 this.score += bossPoints;
                 this.addExperience(bossPoints);
-                this.empCharge = 100; // Recharge complète EMP après un boss
+                this.empCharge = 100;
 
-                // Effet de ralenti (hit-stop) et méga-explosion
-                this.hitStopTimer = 0.16;
-                this.addScreenShake(0.9, 22);
-                this.createExplosion(b.x, b.y, '#ff0080', 80, 'boss');
-                this.createExplosion(b.x - 30, b.y + 20, '#00f3ff', 50, 'large');
-                this.createExplosion(b.x + 30, b.y - 20, '#fbbf24', 50, 'large');
+                this.createExplosion(b.x, b.y, '#ff0080', 75, 'boss');
+                this.shockwaves.push(new Shockwave(b.x, b.y, 350, '#fbbf24', 0.8, 8));
+                this.addScreenShake(25, 0.7);
+                this.hitStopTimer = 0.08;
 
                 this.floatingTexts.push(new FloatingText(b.x, b.y, `BOSS VAINCU ! +${bossPoints.toLocaleString('fr-FR')}`, '#fbbf24'));
                 document.getElementById('bossHud').classList.add('hidden');
 
-                // Largage garanti de bonus
-                this.powerUps.push(new PowerUp(b.x - 25, b.y, 'shield'));
-                this.powerUps.push(new PowerUp(b.x + 25, b.y, 'spread'));
+                // Largage garanti de bonus dont un module d'évolution de châssis
+                this.powerUps.push(new PowerUp(b.x - 30, b.y, 'shield'));
+                this.powerUps.push(new PowerUp(b.x + 30, b.y, this.player.shipTier < 3 ? 'chassis' : 'spread'));
 
                 this.updateHUD();
                 this.waveClearDelay = 2.0;
@@ -2039,16 +2160,14 @@
                 if (this.player.invulnTimer > 0 || this.state !== 'PLAYING') return;
 
                 this.player.hp = Math.max(0, this.player.hp - amount);
-                this.player.invulnTimer = 1.1;
+                this.player.invulnTimer = 1.2;
                 this.player.shieldPulse = 1.0;
 
-                // Réinitialisation du multiplicateur de combo
-                this.multiplier = 1;
-                this.comboTimer = 0;
-
+                // Réinitialisation partielle du multiplicateur
+                this.multiplier = Math.max(1, Math.floor(this.multiplier / 2));
                 this.sound.playHit();
-                this.addScreenShake(0.35, 14);
-                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 70, '#ef4444', 0.35));
+                this.addScreenShake(14, 0.35);
+                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 75, '#ef4444', 0.4, 4));
                 this.floatingTexts.push(new FloatingText(this.player.x, this.player.y - 20, `-${amount}`, '#ef4444'));
 
                 this.updateHUD();
@@ -2060,109 +2179,167 @@
 
             applyPowerUp(p) {
                 this.sound.playPowerUp();
-                const bonusPts = Math.round(250 * this.getTotalScoreMultiplier());
-                this.score += bonusPts;
-                this.addExperience(bonusPts);
-                this.floatingTexts.push(new FloatingText(p.x, p.y, p.config.title, p.config.color));
-                this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 60, p.config.color, 0.35));
+                const bonusPoints = Math.round(300 * this.multiplier * this.getTotalScoreMultiplier());
+                this.score += bonusPoints;
+                this.addExperience(bonusPoints);
+                this.shockwaves.push(new Shockwave(p.x, p.y, 70, p.color, 0.35, 3));
 
-                if (p.type === 'spread') {
-                    this.player.weaponLevel = Math.min(3, this.player.weaponLevel + 1);
-                    this.player.weaponTimer = 14;
-                } else if (p.type === 'laser') {
-                    this.player.piercingLaser = true;
-                    this.player.weaponTimer = 12;
-                } else if (p.type === 'shield') {
-                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 35);
-                    this.player.shieldPulse = 1.0;
-                } else if (p.type === 'drone') {
-                    this.player.orbitalDrones = Math.min(2, this.player.orbitalDrones + 1);
+                let bannerText = p.title;
+
+                switch (p.type) {
+                    case 'spread':
+                        this.player.weaponLevel = Math.min(3, this.player.weaponLevel + 1);
+                        this.player.weaponTimer = 14;
+                        break;
+                    case 'laser':
+                        this.player.piercingLaser = true;
+                        this.player.weaponTimer = 12;
+                        break;
+                    case 'shield':
+                        this.player.hp = Math.min(this.player.maxHp, this.player.hp + 35);
+                        this.player.shieldPulse = 1.0;
+                        break;
+                    case 'drone':
+                        this.player.orbitalDrones = Math.min(2, this.player.orbitalDrones + 1);
+                        break;
+                    case 'chassis':
+                        if (this.player.shipTier < 3) {
+                            this.player.shipTier++;
+                            this.player.evolutionPulse = 1.2;
+                            this.player.maxHp += 20;
+                            this.player.hp = Math.min(this.player.maxHp, this.player.hp + 40);
+                            const tierNames = [
+                                'CHASSEUR STANDARD',
+                                'INTERCEPTEUR MK-II !',
+                                'CROISEUR VALKYRIE !',
+                                'DREADNOUGHT NOVA !'
+                            ];
+                            bannerText = tierNames[this.player.shipTier];
+                            this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 160, '#fbbf24', 0.65, 5));
+                            this.addScreenShake(10, 0.25);
+                        } else {
+                            // Bonus massif si le vaisseau est déjà au rang maximum
+                            const maxBonus = Math.round(1500 * this.multiplier * this.getTotalScoreMultiplier());
+                            this.score += maxBonus;
+                            this.addExperience(maxBonus);
+                            bannerText = `SURCHARGE MAX +${maxBonus.toLocaleString('fr-FR')} !`;
+                        }
+                        break;
                 }
 
+                this.floatingTexts.push(new FloatingText(p.x, p.y - 10, bannerText, p.color));
                 this.updateHUD();
                 this.updateWeaponHUD();
             }
 
             triggerGameOver() {
                 this.state = 'GAMEOVER';
-                this.createExplosion(this.player.x, this.player.y, this.player.auraColor, 65, 'boss');
-                this.addScreenShake(0.8, 20);
+                this.createExplosion(this.player.x, this.player.y, '#00f3ff', 60, 'boss');
+                this.addScreenShake(22, 0.6);
 
+                // Vérification record
                 const isNewRecord = this.score > this.highScore;
                 if (isNewRecord) {
                     this.highScore = this.score;
+                    localStorage.setItem('neonNovaHighScore', this.highScore.toString());
                 }
-                this.saveProgression();
 
-                setTimeout(() => {
-                    document.getElementById('hud').classList.add('hidden');
-                    document.getElementById('bossHud').classList.add('hidden');
-                    document.getElementById('gameOverScreen').classList.remove('hidden');
+                // Mise à jour de l'écran de fin
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.remove('hidden');
 
-                    document.getElementById('finalScore').textContent = this.score.toLocaleString('fr-FR');
-                    document.getElementById('finalXpGained').textContent = `+${Math.floor(this.sessionXp).toLocaleString('fr-FR')} XP`;
-                    document.getElementById('finalHighScore').textContent = this.highScore.toLocaleString('fr-FR');
-                    document.getElementById('finalWave').textContent = this.wave;
-                    document.getElementById('finalKills').textContent = this.kills;
-                    document.getElementById('menuHighScore').textContent = this.highScore.toLocaleString('fr-FR');
-                    document.getElementById('hudHighScore').textContent = this.highScore.toLocaleString('fr-FR');
+                document.getElementById('newRecordBadge').classList.toggle('hidden', !isNewRecord);
+                document.getElementById('finalScore').textContent = this.score.toLocaleString('fr-FR');
+                document.getElementById('finalXpGained').textContent = `+${this.sessionXpGained.toLocaleString('fr-FR')} XP`;
+                document.getElementById('finalWave').textContent = this.wave;
+                document.getElementById('finalKills').textContent = this.kills;
+                document.getElementById('finalHighScore').textContent = this.highScore.toLocaleString('fr-FR');
 
-                    // Affichage de la progression de niveau & renaissance
-                    const reqXp = this.getXpRequired(this.level);
-                    const xpPct = Math.min(100, Math.round((this.xp / reqXp) * 100));
-                    document.getElementById('finalLevel').textContent = this.level;
-                    document.getElementById('finalRebirths').textContent = this.rebirths;
-                    document.getElementById('finalRebirthMult').textContent = `x${this.getRebirthMultiplier().toFixed(2)}`;
-                    document.getElementById('finalXpBar').style.width = `${xpPct}%`;
-                    document.getElementById('finalXpProgressText').textContent = `${Math.floor(this.xp).toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
+                // Progression de niveau & renaissance sur Game Over
+                const reqXp = this.getXpRequiredForNextLevel(this.level);
+                const pct = Math.min(100, (this.xp / reqXp) * 100);
+                document.getElementById('finalLevel').textContent = this.level;
+                document.getElementById('finalRebirths').textContent = this.rebirths;
+                document.getElementById('finalRebirthMult').textContent = `x${this.getRebirthMultiplier().toFixed(2)}`;
+                document.getElementById('finalXpBar').style.width = `${pct}%`;
+                document.getElementById('finalXpProgressText').textContent = `${this.xp.toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
 
-                    const lvlBadge = document.getElementById('finalLevelsGainedBadge');
-                    if (this.sessionLevelsGained > 0) {
-                        lvlBadge.textContent = `+${this.sessionLevelsGained} LVL`;
-                        lvlBadge.classList.remove('hidden');
-                    } else {
-                        lvlBadge.classList.add('hidden');
-                    }
+                const lvlBadge = document.getElementById('finalLevelsGainedBadge');
+                if (this.sessionLevelsGained > 0) {
+                    lvlBadge.textContent = `+${this.sessionLevelsGained} LVL`;
+                    lvlBadge.classList.remove('hidden');
+                } else {
+                    lvlBadge.classList.add('hidden');
+                }
 
-                    document.getElementById('gameOverRebirthBtn').classList.toggle('hidden', !this.canRebirth());
-                    document.getElementById('newRecordBadge').classList.toggle('hidden', !isNewRecord);
-                    this.updateProgressionUI();
-                }, 900);
+                document.getElementById('gameOverRebirthBtn').classList.toggle('hidden', !this.canRebirth());
+            }
+
+            createExplosion(x, y, color, count, soundSize) {
+                this.sound.playExplosion(soundSize);
+                this.shockwaves.push(new Shockwave(x, y, soundSize === 'boss' ? 180 : 55, color, 0.4));
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = (soundSize === 'boss' ? 420 : 260) * Math.random() + 40;
+                    this.spawnParticle(
+                        x, y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        i % 3 === 0 ? '#ffffff' : color,
+                        Math.random() * 4 + 2,
+                        Math.random() * 0.45 + 0.25
+                    );
+                }
+            }
+
+            spawnParticle(x, y, vx, vy, color, size, life) {
+                if (this.particles.length > 350) this.particles.shift();
+                this.particles.push(new Particle(x, y, vx, vy, color, size, life));
+            }
+
+            addScreenShake(intensity, duration) {
+                this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+                this.shakeTime = Math.max(this.shakeTime, duration);
             }
 
             updateHUD() {
                 document.getElementById('hudScore').textContent = this.score.toLocaleString('fr-FR');
                 document.getElementById('hudMultiplier').textContent = `x${this.multiplier}`;
+                document.getElementById('hudHighScore').textContent = Math.max(this.score, this.highScore).toLocaleString('fr-FR');
 
-                const hpPct = Math.round((this.player.hp / this.player.maxHp) * 100);
+                // Barre de vie
+                const hpPct = Math.max(0, Math.round((this.player.hp / this.player.maxHp) * 100));
                 document.getElementById('hudHpText').textContent = `${hpPct}%`;
                 const hpBar = document.getElementById('hudHpBar');
                 hpBar.style.width = `${hpPct}%`;
-                hpBar.className = hpPct <= 30
-                    ? 'h-full bg-gradient-to-r from-red-600 to-amber-500 transition-all duration-150'
-                    : 'h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-150';
+                if (hpPct <= 30) {
+                    hpBar.className = 'h-full bg-gradient-to-r from-red-600 to-rose-400 transition-all duration-150';
+                } else {
+                    hpBar.className = 'h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-150';
+                }
 
+                // Barre EMP
                 const empPct = Math.floor(this.empCharge);
                 document.getElementById('hudEmpText').textContent = empPct >= 100 ? 'PRÊTE !' : `${empPct}%`;
                 document.getElementById('hudEmpBar').style.width = `${empPct}%`;
-
                 const empBtn = document.getElementById('empMobileBtn');
                 if (empPct >= 100) {
-                    empBtn.classList.add('border-cyan-400', 'shadow-[0_0_20px_rgba(0,243,255,0.6)]', 'animate-pulse');
+                    empBtn.classList.add('border-pink-400', 'shadow-[0_0_20px_rgba(255,0,128,0.6)]', 'animate-pulse');
                 } else {
-                    empBtn.classList.remove('border-cyan-400', 'shadow-[0_0_20px_rgba(0,243,255,0.6)]', 'animate-pulse');
+                    empBtn.classList.remove('border-pink-400', 'shadow-[0_0_20px_rgba(255,0,128,0.6)]', 'animate-pulse');
                 }
             }
 
             updateBossHUD() {
                 if (!this.boss) return;
-                const pct = Math.max(0, Math.round((this.boss.hp / this.boss.maxHp) * 100));
-                document.getElementById('bossHpText').textContent = `${pct}%`;
+                const pct = Math.max(0, (this.boss.hp / this.boss.maxHp) * 100);
                 document.getElementById('bossHpBar').style.width = `${pct}%`;
+                document.getElementById('bossHpText').textContent = `${Math.ceil(pct)}%`;
             }
 
             updateWeaponHUD() {
                 const el = document.getElementById('hudWeapon');
+                const tierLabels = ['', ' • MK-II', ' • VALKYRIE', ' • DREADNOUGHT'];
                 let label = 'CANON STANDARD';
                 if (this.player.piercingLaser && this.player.weaponLevel > 1) {
                     label = `LASER PERFORANT NIV.${this.player.weaponLevel}`;
@@ -2173,7 +2350,7 @@
                 } else if (this.player.weaponLevel === 3) {
                     label = 'TRIPLE DISPERSION';
                 }
-                el.textContent = label;
+                el.textContent = label + tierLabels[this.player.shipTier];
             }
 
             // ========================================================================
