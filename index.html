@@ -62,6 +62,25 @@
             transform: scale(0.96);
         }
 
+        /* Bouton spécial doré/magenta pour la Renaissance */
+        .rebirth-btn-ready {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(236, 72, 153, 0.32));
+            border: 2px solid #fbbf24;
+            box-shadow: 0 0 22px rgba(251, 191, 36, 0.55), inset 0 0 14px rgba(236, 72, 153, 0.35);
+            animation: rebirthPulse 2s infinite ease-in-out;
+        }
+
+        .rebirth-btn-ready:hover {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.48), rgba(236, 72, 153, 0.48));
+            box-shadow: 0 0 32px rgba(251, 191, 36, 0.9), inset 0 0 18px rgba(251, 191, 36, 0.4);
+            transform: scale(1.03);
+        }
+
+        @keyframes rebirthPulse {
+            0%, 100% { box-shadow: 0 0 16px rgba(251, 191, 36, 0.45), inset 0 0 10px rgba(236, 72, 153, 0.25); }
+            50% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.85), inset 0 0 18px rgba(251, 191, 36, 0.45); }
+        }
+
         /* Animation de pulsation pour le titre */
         @keyframes pulseGlow {
             0%, 100% { filter: drop-shadow(0 0 12px rgba(0, 243, 255, 0.8)); }
@@ -114,70 +133,70 @@
     </button>
 
     <!-- HUD (Interface en jeu) -->
-    <div id="hud" class="hidden fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
-        <!-- Barre supérieure : Score, Vague, Combo -->
-        <div class="flex justify-between items-start w-full pr-14">
-            <!-- Score & Multiplicateur -->
-            <div class="flex flex-col">
-                <div class="text-xs sm:text-sm uppercase tracking-widest text-cyan-400 font-bold">Score</div>
-                <div id="hudScore" class="font-cyber text-2xl sm:text-4xl font-black text-white neon-text-cyan">0</div>
-                <div class="flex items-center gap-2 mt-1">
-                    <span id="hudMultiplier" class="font-cyber text-sm sm:text-lg font-bold px-2 py-0.5 rounded bg-pink-500/20 border border-pink-500 text-pink-400">x1</span>
-                    <div class="w-20 sm:w-28 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div id="hudComboBar" class="h-full bg-gradient-to-r from-cyan-400 to-pink-500 w-0 transition-all duration-75"></div>
+    <div id="hud" class="hidden fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-3 sm:p-6">
+        <!-- Bloc Supérieur : Stats + Barre XP -->
+        <div class="w-full flex flex-col gap-2">
+            <!-- Ligne supérieure : Score, Vague, Niveau & Renaissance -->
+            <div class="flex justify-between items-start w-full pr-14">
+                <!-- Score & Multiplicateur -->
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs sm:text-sm uppercase tracking-widest text-cyan-400 font-bold">Score</span>
+                        <span id="hudTotalBoost" class="text-[11px] font-cyber font-bold px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300">x1.00</span>
+                    </div>
+                    <div id="hudScore" class="font-cyber text-2xl sm:text-4xl font-black text-white neon-text-cyan">0</div>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span id="hudMultiplier" class="font-cyber text-xs sm:text-base font-bold px-2 py-0.5 rounded bg-pink-500/20 border border-pink-500 text-pink-400">x1</span>
+                        <div class="w-20 sm:w-28 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="hudComboBar" class="h-full bg-gradient-to-r from-cyan-400 to-pink-500 w-0 transition-all duration-75"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Indicateur de Vague & Arme -->
+                <div class="flex flex-col items-center">
+                    <div class="px-3 sm:px-4 py-1 rounded-full bg-slate-900/75 border border-cyan-500/40 backdrop-blur-sm">
+                        <span class="text-xs uppercase tracking-widest text-slate-400 mr-1">Vague</span>
+                        <span id="hudWave" class="font-cyber text-base sm:text-xl font-bold text-cyan-300">1</span>
+                    </div>
+                    <div id="hudWeapon" class="mt-1.5 text-[11px] sm:text-xs font-bold tracking-wider uppercase text-amber-400 drop-shadow text-center">
+                        CANON STANDARD
+                    </div>
+                </div>
+
+                <!-- Niveau & Rang de Renaissance -->
+                <div class="flex flex-col items-end">
+                    <div class="flex items-center gap-1.5">
+                        <span id="hudRebirthBadge" class="font-cyber text-xs sm:text-sm font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-300">
+                            ★ R0
+                        </span>
+                        <span id="hudLevelBadge" class="font-cyber text-sm sm:text-lg font-black text-cyan-300">
+                            LVL 1
+                        </span>
+                    </div>
+                    <div id="hudRebirthReadyTag" class="hidden mt-1 text-[10px] sm:text-xs font-cyber font-bold uppercase tracking-wider text-amber-300 animate-pulse">
+                        ⚡ RENAISSANCE PRÊTE !
+                    </div>
+                    <div class="hidden sm:block text-[11px] text-slate-400 mt-0.5">
+                        Record : <span id="hudHighScore" class="font-cyber text-slate-200">0</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Indicateur de Vague -->
-            <div class="flex flex-col items-center">
-                <div class="px-4 py-1 rounded-full bg-slate-900/70 border border-cyan-500/40 backdrop-blur-sm">
-                    <span class="text-xs uppercase tracking-widest text-slate-400 mr-1">Vague</span>
-                    <span id="hudWave" class="font-cyber text-lg sm:text-xl font-bold text-cyan-300">1</span>
+            <!-- Barre d'Expérience (XP) fine et néon -->
+            <div class="w-full max-w-2xl mx-auto bg-slate-950/75 px-3 py-1.5 rounded-xl border border-cyan-500/30 backdrop-blur-sm">
+                <div class="flex justify-between items-center text-[10px] sm:text-xs font-cyber tracking-wider mb-1">
+                    <span class="text-cyan-300 font-bold" id="hudPilotTitle">PILOTE RECRUE</span>
+                    <span class="text-slate-300" id="hudXpText">0 / 1 500 XP</span>
                 </div>
-                <!-- Arme active -->
-                <div id="hudWeapon" class="mt-2 text-xs sm:text-sm font-bold tracking-wider uppercase text-amber-400 drop-shadow">
-                    CANON STANDARD
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div id="hudXpBar" class="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-amber-400 transition-all duration-150" style="width: 0%;"></div>
                 </div>
-            </div>
-
-            <!-- Meilleur Score discret -->
-            <div class="hidden sm:flex flex-col items-end">
-                <div class="text-xs uppercase tracking-widest text-slate-400">Record</div>
-                <div id="hudHighScore" class="font-cyber text-lg font-bold text-slate-300">0</div>
             </div>
         </div>
 
         <!-- Barre de vie du Boss (Cachée hors combat de boss) -->
-        <div id="bossHud" class="hidden w-full max-w-xl mx-auto mt-2 flex flex-col items-center transition-opacity duration-300">
-            <div class="flex justify-between w-full text-xs sm:text-sm font-cyber font-bold tracking-widest text-pink-400 mb-1">
-                <span id="bossName">GARDIEN CYBERNÉTIQUE</span>
-                <span id="bossHpText">100%</span>
-            </div>
-            <div class="w-full h-3 sm:h-4 bg-slate-950/90 rounded-full border border-pink-500/70 p-0.5 shadow-[0_0_15px_rgba(255,0,128,0.5)]">
-                <div id="bossHpBar" class="h-full rounded-full bg-gradient-to-r from-pink-600 via-purple-500 to-amber-400 transition-all duration-100" style="width: 100%;"></div>
-            </div>
-        </div>
-
-        <!-- Annonce centrale de vague / Alerte Boss -->
-        <div id="centerBanner" class="my-auto text-center pointer-events-none opacity-0 transition-all duration-500 transform scale-90">
-            <h2 id="bannerTitle" class="font-cyber text-4xl sm:text-6xl font-black tracking-wider text-white neon-text-cyan uppercase">VAGUE 1</h2>
-            <p id="bannerSub" class="text-sm sm:text-lg tracking-widest text-pink-400 font-bold uppercase mt-1">PRÉPAREZ-VOUS</p>
-        </div>
-
-        <!-- Barre inférieure : Coque/Bouclier et Jauge Onde EMP -->
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-3 w-full max-w-4xl mx-auto">
-            <!-- Coque & Bouclier -->
-            <div class="w-full sm:w-64 bg-slate-900/75 p-2.5 rounded-xl border border-cyan-500/30 backdrop-blur-sm">
-                <div class="flex justify-between text-xs font-bold uppercase tracking-wider mb-1">
-                    <span class="text-cyan-300">Intégrité Coque</span>
-                    <span id="hudHpText" class="text-white">100%</span>
-                </div>
-                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div id="hudHpBar" class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-150" style="width: 100%;"></div>
-                </div>
-            </div>
-
+        <div id="bossHud" class="hidden w-full max-w-xl mx-auto mt-1 flex flex-col items-center transition-opacity duration-300">
             <!-- Jauge Onde EMP (Cliquable sur mobile/tactile quand pleine) -->
             <button id="empMobileBtn" class="pointer-events-auto w-full sm:w-64 bg-slate-900/75 p-2.5 rounded-xl border border-pink-500/30 backdrop-blur-sm text-left transition-all">
                 <div class="flex justify-between text-xs font-bold uppercase tracking-wider mb-1">
@@ -192,92 +211,207 @@
     </div>
 
     <!-- ÉCRAN D'ACCUEIL (MENU PRINCIPAL) -->
-    <div id="startScreen" class="fixed inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-        <div class="max-w-lg w-full bg-slate-900/85 rounded-3xl p-6 sm:p-10 neon-box text-center relative overflow-hidden">
+    <div id="startScreen" class="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4 bg-slate-950/65 backdrop-blur-sm overflow-y-auto">
+        <div class="max-w-xl w-full bg-slate-900/90 rounded-3xl p-5 sm:p-8 neon-box text-center relative overflow-hidden my-auto">
             <!-- Décoration d'angle -->
-            <div class="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-pink-500 rounded-tl-3xl opacity-70"></div>
-            <div class="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-cyan-400 rounded-br-3xl opacity-70"></div>
+            <div class="absolute top-0 left-0 w-14 h-14 border-t-2 border-l-2 border-pink-500 rounded-tl-3xl opacity-70"></div>
+            <div class="absolute bottom-0 right-0 w-14 h-14 border-b-2 border-r-2 border-cyan-400 rounded-br-3xl opacity-70"></div>
 
-            <div class="inline-block px-3 py-1 rounded-full bg-pink-500/20 border border-pink-500/50 text-pink-300 text-xs font-bold tracking-widest uppercase mb-3">
+            <div class="inline-block px-3 py-0.5 rounded-full bg-pink-500/20 border border-pink-500/50 text-pink-300 text-[11px] font-bold tracking-widest uppercase mb-2">
                 Système de Combat Orbital
             </div>
 
-            <h1 class="font-cyber text-5xl sm:text-6xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-pink-500 animate-title mb-2">
+            <h1 class="font-cyber text-4xl sm:text-6xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-pink-500 animate-title mb-1">
                 NEON NOVA
             </h1>
 
-            <p class="text-slate-300 text-base sm:text-lg mb-6">
-                Survivez aux vagues cybernétiques, améliorez votre arsenal et pulvérisez les gardiens colossaux.
+            <p class="text-slate-300 text-xs sm:text-sm mb-4">
+                Accumulez de l'XP en combat, montez en niveau et déclenchez des <span class="text-amber-400 font-bold">Renaissances</span> pour multiplier votre puissance.
             </p>
 
-            <!-- Meilleur Score -->
-            <div class="mb-6 py-2 px-4 rounded-xl bg-slate-950/70 border border-slate-800 inline-flex items-center gap-3">
-                <span class="text-xs uppercase tracking-widest text-slate-400">Meilleur Score :</span>
-                <span id="menuHighScore" class="font-cyber text-xl font-bold text-amber-400">0</span>
+            <!-- CARTE DE PROFIL PILOTE (NIVEAU, XP & RENAISSANCE) -->
+            <div class="bg-slate-950/85 rounded-2xl p-4 border border-cyan-500/35 mb-4 text-left shadow-inner">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+                    <div>
+                        <div class="text-[11px] uppercase tracking-widest text-slate-400">Grade Actuel</div>
+                        <div id="menuPilotTitle" class="font-cyber text-base sm:text-lg font-bold text-cyan-300">PILOTE RECRUE</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="px-3 py-1 rounded-xl bg-cyan-500/15 border border-cyan-400/50 text-center">
+                            <div class="text-[10px] uppercase text-cyan-300">Niveau</div>
+                            <div id="menuLevel" class="font-cyber text-lg sm:text-xl font-black text-white">1</div>
+                        </div>
+                        <div class="px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-400/50 text-center">
+                            <div class="text-[10px] uppercase text-amber-300">Renaissances</div>
+                            <div id="menuRebirths" class="font-cyber text-lg sm:text-xl font-black text-amber-400">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barre de progression XP -->
+                <div class="mb-3">
+                    <div class="flex justify-between text-xs font-cyber mb-1">
+                        <span class="text-slate-400">Expérience</span>
+                        <span id="menuXpText" class="text-cyan-300">0 / 1 500 XP</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5">
+                        <div id="menuXpBar" class="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-amber-400 transition-all duration-300" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Bonus actifs détaillés -->
+                <div class="grid grid-cols-3 gap-2 text-center text-xs bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 mb-3">
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase">Boost Renaissance</div>
+                        <div id="menuRebirthMult" class="font-cyber font-bold text-amber-400 text-sm">x1.00</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase">Gain Score/XP</div>
+                        <div id="menuScoreBonus" class="font-cyber font-bold text-cyan-300 text-sm">x1.00</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase">Puissance Tir</div>
+                        <div id="menuDamageBonus" class="font-cyber font-bold text-pink-400 text-sm">+0%</div>
+                    </div>
+                </div>
+
+                <!-- Bouton & État de Renaissance -->
+                <button id="menuRebirthBtn" disabled class="w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-900/60 text-slate-400 font-cyber text-xs sm:text-sm font-bold tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-not-allowed">
+                    <span id="menuRebirthBtnTitle">RENAISSANCE VERROUILLÉE</span>
+                    <span id="menuRebirthBtnSub" class="font-sans text-[11px] font-normal text-slate-400">Atteignez le Niveau 10 pour renaître (Boost permanent x1.25)</span>
+                </button>
             </div>
 
-            <!-- Instructions rapides -->
-            <div class="grid grid-cols-2 gap-3 text-left text-xs sm:text-sm bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 mb-8">
-                <div class="flex items-start gap-2">
-                    <span class="text-cyan-400 font-bold">🕹️ DÉPLACEMENT :</span>
-                    <span class="text-slate-300">Souris, Tactile ou ZQSD / Flèches</span>
+            <!-- Meilleur Score & Commandes condensées -->
+            <div class="flex flex-wrap justify-between items-center gap-2 mb-5 px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs">
+                <div>
+                    <span class="text-slate-400 uppercase">Record : </span>
+                    <span id="menuHighScore" class="font-cyber font-bold text-amber-400 text-sm">0</span>
                 </div>
-                <div class="flex items-start gap-2">
-                    <span class="text-pink-400 font-bold">⚡ ONDE EMP :</span>
-                    <span class="text-slate-300">Espace, Clic Droit ou Jauge EMP</span>
-                </div>
-                <div class="flex items-start gap-2">
-                    <span class="text-emerald-400 font-bold">🔥 TIR AUTO :</span>
-                    <span class="text-slate-300">Activé en combat (ou Clic Gauche)</span>
-                </div>
-                <div class="flex items-start gap-2">
-                    <span class="text-amber-400 font-bold">💎 BONUS :</span>
-                    <span class="text-slate-300">Collectez les orbes d'énergie</span>
+                <div class="text-slate-300">
+                    🕹️ <span class="text-cyan-400 font-bold">ZQSD/Souris/Tactile</span> • ⚡ <span class="text-pink-400 font-bold">EMP [Espace]</span>
                 </div>
             </div>
 
-            <button id="startBtn" class="neon-btn w-full py-4 rounded-2xl font-cyber text-xl sm:text-2xl font-black tracking-widest text-white uppercase cursor-pointer">
-                JOUER
-            </button>
+            <div class="flex gap-3">
+                <button id="startBtn" class="neon-btn flex-1 py-3.5 rounded-2xl font-cyber text-lg sm:text-2xl font-black tracking-widest text-white uppercase cursor-pointer">
+                    JOUER
+                </button>
+                <button id="resetProgressBtn" title="Réinitialiser la progression" class="px-3.5 rounded-2xl bg-slate-950/80 border border-slate-700 hover:border-red-500 text-slate-400 hover:text-red-400 transition-colors text-xs font-bold uppercase cursor-pointer">
+                    RAZ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE DE CONFIRMATION DE RENAISSANCE (Sans alert/confirm natif) -->
+    <div id="rebirthModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="max-w-md w-full bg-slate-900 rounded-3xl p-6 border-2 border-amber-400 shadow-[0_0_45px_rgba(251,191,36,0.45)] text-center">
+            <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center text-2xl">
+                🔥
+            </div>
+            <h3 class="font-cyber text-2xl sm:text-3xl font-black text-amber-400 uppercase mb-2">
+                RENAISSANCE RANG <span id="modalNextRebirth">1</span>
+            </h3>
+            <p class="text-slate-300 text-sm mb-4">
+                Transcendez votre vaisseau pour obtenir un multiplicateur permanent cumulatif !
+            </p>
+
+            <div class="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 text-left text-xs sm:text-sm space-y-2 mb-6">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Niveau & XP :</span>
+                    <span class="text-pink-400 font-bold">Réinitialisés au Niveau 1 (0 XP)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Multiplicateur Renaissance :</span>
+                    <span class="font-cyber font-bold text-amber-400">
+                        <span id="modalOldMult">x1.00</span> ➔ <span id="modalNewMult" class="text-emerald-400">x1.25</span>
+                    </span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Effet Permanent :</span>
+                    <span class="text-cyan-300 font-bold">x1.25 Score/XP & Puissance accrue</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Aura du Vaisseau :</span>
+                    <span id="modalNewAura" class="font-bold text-amber-300">Évolution visuelle débloquée</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="cancelRebirthBtn" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-cyber text-sm font-bold uppercase cursor-pointer">
+                    ANNULER
+                </button>
+                <button id="confirmRebirthBtn" class="flex-1 py-3 rounded-xl rebirth-btn-ready text-white font-cyber text-sm font-black uppercase cursor-pointer">
+                    CONFIRMER
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- ÉCRAN DE FIN DE PARTIE (GAME OVER) -->
-    <div id="gameOverScreen" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
-        <div class="max-w-md w-full bg-slate-900/90 rounded-3xl p-6 sm:p-8 border border-pink-500/60 shadow-[0_0_40px_rgba(255,0,128,0.3)] text-center">
-            <h2 class="font-cyber text-4xl sm:text-5xl font-black text-pink-500 neon-text-pink mb-1">
+    <div id="gameOverScreen" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+        <div class="max-w-md w-full bg-slate-900/95 rounded-3xl p-6 sm:p-7 border border-pink-500/60 shadow-[0_0_40px_rgba(255,0,128,0.3)] text-center my-auto">
+            <h2 class="font-cyber text-3xl sm:text-4xl font-black text-pink-500 neon-text-pink mb-1">
                 VAISSEAU DÉTRUIT
             </h2>
-            <p id="newRecordBadge" class="hidden text-amber-400 font-bold text-sm tracking-widest uppercase mb-4 animate-bounce">
+            <p id="newRecordBadge" class="hidden text-amber-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-2 animate-bounce">
                 ★ NOUVEAU RECORD PERSONNEL ! ★
             </p>
-            <p id="gameOverSub" class="text-slate-400 text-sm mb-6">
+            <p id="gameOverSub" class="text-slate-400 text-xs sm:text-sm mb-4">
                 Signal perdu dans le secteur néon.
             </p>
 
             <!-- Statistiques de la partie -->
-            <div class="grid grid-cols-2 gap-3 mb-8">
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-xs text-slate-400 uppercase">Score Final</div>
-                    <div id="finalScore" class="font-cyber text-2xl font-bold text-cyan-300 mt-1">0</div>
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+                <div class="bg-slate-950/85 p-2.5 rounded-2xl border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase">Score Final</div>
+                    <div id="finalScore" class="font-cyber text-xl font-bold text-cyan-300 mt-0.5">0</div>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-xs text-slate-400 uppercase">Meilleur Score</div>
-                    <div id="finalHighScore" class="font-cyber text-2xl font-bold text-amber-400 mt-1">0</div>
+                <div class="bg-slate-950/85 p-2.5 rounded-2xl border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase">XP Gagnée</div>
+                    <div id="finalXpGained" class="font-cyber text-xl font-bold text-emerald-400 mt-0.5">+0 XP</div>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-xs text-slate-400 uppercase">Vague Atteinte</div>
-                    <div id="finalWave" class="font-cyber text-xl font-bold text-white mt-1">1</div>
+                <div class="bg-slate-950/85 p-2.5 rounded-2xl border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase">Vague & Ennemis</div>
+                    <div class="font-cyber text-base font-bold text-white mt-0.5">
+                        V.<span id="finalWave">1</span> • <span id="finalKills" class="text-pink-400">0</span> K.O.
+                    </div>
                 </div>
-                <div class="bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-                    <div class="text-xs text-slate-400 uppercase">Ennemis Vaincus</div>
-                    <div id="finalKills" class="font-cyber text-xl font-bold text-pink-400 mt-1">0</div>
+                <div class="bg-slate-950/85 p-2.5 rounded-2xl border border-slate-800">
+                    <div class="text-[11px] text-slate-400 uppercase">Record</div>
+                    <div id="finalHighScore" class="font-cyber text-base font-bold text-amber-400 mt-0.5">0</div>
                 </div>
             </div>
 
-            <button id="restartBtn" class="neon-btn w-full py-4 rounded-2xl font-cyber text-xl font-black tracking-widest text-white uppercase cursor-pointer">
-                REJOUER
-            </button>
+            <!-- Progression de Niveau & Renaissance post-partie -->
+            <div class="bg-slate-950/90 p-3.5 rounded-2xl border border-cyan-500/30 mb-5 text-left">
+                <div class="flex justify-between items-center text-xs font-cyber mb-1.5">
+                    <span class="text-cyan-300 font-bold">
+                        NIVEAU <span id="finalLevel">1</span>
+                        <span id="finalLevelsGainedBadge" class="hidden ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px]">+1 LVL</span>
+                    </span>
+                    <span class="text-amber-400 font-bold">★ RENAISSANCE <span id="finalRebirths">0</span> (<span id="finalRebirthMult">x1.00</span>)</span>
+                </div>
+                <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-1">
+                    <div id="finalXpBar" class="h-full bg-gradient-to-r from-cyan-400 to-amber-400" style="width: 0%;"></div>
+                </div>
+                <div id="finalXpProgressText" class="text-[11px] text-slate-400 text-right font-cyber">0 / 1 500 XP</div>
+
+                <!-- Bouton Renaissance direct si débloqué pendant la partie -->
+                <button id="gameOverRebirthBtn" class="hidden mt-3 w-full py-2.5 px-3 rounded-xl rebirth-btn-ready text-white font-cyber text-xs font-black tracking-wider uppercase cursor-pointer">
+                    🔥 DÉCLENCHER LA RENAISSANCE MAINTENANT !
+                </button>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="backToMenuBtn" class="px-4 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 font-cyber text-sm font-bold text-slate-200 uppercase cursor-pointer">
+                    MENU
+                </button>
+                <button id="restartBtn" class="neon-btn flex-1 py-3.5 rounded-2xl font-cyber text-lg sm:text-xl font-black tracking-widest text-white uppercase cursor-pointer">
+                    REJOUER
+                </button>
+            </div>
         </div>
     </div>
 
@@ -479,6 +613,44 @@
                     osc.start(start);
                     osc.stop(start + 0.28);
                 }
+            }
+
+            // Son triomphant de Montée de Niveau (Level Up)
+            playLevelUp() {
+                if (this.muted || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [440, 554.37, 659.25, 880, 1108.73]; // Accord majeur ascendant
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                    gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.28);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.06);
+                    osc.stop(now + idx * 0.06 + 0.28);
+                });
+            }
+
+            // Son cosmique de Renaissance (Prestige)
+            playRebirth() {
+                if (this.muted || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                    gain.gain.setValueAtTime(0.1, now + idx * 0.07);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.45);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.07);
+                    osc.stop(now + idx * 0.07 + 0.45);
+                });
             }
 
             // Dégâts subis par le joueur
@@ -708,6 +880,8 @@
                 this.fireCooldown = 0;
                 this.orbitalDrones = 0; // 0 à 2 drones orbitaux
                 this.droneAngle = 0;
+                this.damageMultiplier = 1.0; // Calculé selon Niveau + Renaissance
+                this.auraColor = '#00f3ff'; // Évolue avec les Renaissances
             }
 
             reset(x, y) {
@@ -770,15 +944,14 @@
                         game.updateWeaponHUD();
                     }
                 }
-
-                // Particules de propulseur
+                // Particules de propulseur aux couleurs de l'aura de renaissance
                 if (Math.random() < 0.85) {
                     game.spawnParticle(
                         this.x + (Math.random() - 0.5) * 8,
                         this.y + 18,
                         (Math.random() - 0.5) * 30,
                         180 + Math.random() * 100,
-                        '#00f3ff',
+                        this.auraColor,
                         3.5,
                         0.25
                     );
@@ -795,8 +968,9 @@
                 const isLaser = this.piercingLaser;
                 this.fireCooldown = isLaser ? 0.16 : 0.13;
                 const speed = isLaser ? -950 : -780;
-                const color = isLaser ? '#ff0080' : '#00f3ff';
-                const dmg = isLaser ? 26 : 16;
+                const color = isLaser ? '#ff0080' : this.auraColor;
+                const baseDmg = isLaser ? 26 : 16;
+                const dmg = baseDmg * this.damageMultiplier;
 
                 if (this.weaponLevel === 1) {
                     game.projectiles.push(new Projectile(this.x, this.y - 20, 0, speed, dmg, color, true, isLaser));
@@ -814,7 +988,7 @@
                     const angle = this.droneAngle + i * Math.PI;
                     const dx = this.x + Math.cos(angle) * 42;
                     const dy = this.y + Math.sin(angle) * 42;
-                    game.projectiles.push(new Projectile(dx, dy - 10, 0, -800, 12, '#34d399', true, false));
+                    game.projectiles.push(new Projectile(dx, dy - 10, 0, -800, 12 * this.damageMultiplier, '#34d399', true, false));
                 }
 
                 game.sound.playShoot(isLaser ? 'laser' : 'normal');
@@ -851,12 +1025,13 @@
                 // Application de l'inclinaison 3D simulée
                 ctx.scale(1 - Math.abs(this.tilt) * 0.35, 1);
                 ctx.rotate(this.tilt * 0.35);
+                // Fuselage principal Cyberpunk avec teinte selon le rang de Renaissance
+                ctx.strokeStyle = this.auraColor;
+                ctx.fillStyle = '#091526';
+                ctx.lineWidth = 2.5;
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = this.auraColor;
 
-                // Flamme de réacteur centrale
-                const flameHeight = 16 + Math.random() * 10;
-                ctx.fillStyle = '#ff0080';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ff0080';
                 ctx.beginPath();
                 ctx.moveTo(-6, 16);
                 ctx.lineTo(0, 16 + flameHeight);
@@ -894,11 +1069,13 @@
 
                 // Bouclier énergétique visible
                 const shieldAlpha = 0.22 + Math.max(0, this.shieldPulse) * 0.5;
-                ctx.strokeStyle = `rgba(0, 243, 255, ${shieldAlpha})`;
+                ctx.strokeStyle = this.auraColor;
+                ctx.globalAlpha = shieldAlpha;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
                 ctx.stroke();
+                ctx.globalAlpha = 1;
 
                 ctx.restore();
             }
@@ -1301,17 +1478,17 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.sound = new SoundEngine();
                 this.input = new InputManager(this.canvas, () => this.triggerEMP());
-
-                // États du jeu : 'MENU', 'PLAYING', 'GAMEOVER'
-                this.state = 'MENU';
-                this.width = window.innerWidth;
-                this.height = window.innerHeight;
-
-                // Sauvegarde du meilleur score
+                // Sauvegarde persistante (Record, Niveau, XP, Renaissances)
                 this.highScore = parseInt(localStorage.getItem('neon_nova_highscore') || '0', 10);
+                this.level = parseInt(localStorage.getItem('neon_nova_level') || '1', 10);
+                this.xp = parseInt(localStorage.getItem('neon_nova_xp') || '0', 10);
+                this.rebirths = parseInt(localStorage.getItem('neon_nova_rebirths') || '0', 10);
+                this.resetConfirmArmed = false;
 
                 // Variables de session
                 this.score = 0;
+                this.sessionXp = 0;
+                this.sessionLevelsGained = 0;
                 this.kills = 0;
                 this.wave = 1;
                 this.multiplier = 1;
@@ -1343,10 +1520,206 @@
 
                 this.initStars();
                 this.resize();
+                this.applyProgressionStats();
                 this.bindUI();
+                this.updateProgressionUI();
 
                 this.lastTime = performance.now();
                 requestAnimationFrame((t) => this.loop(t));
+            }
+
+            // ========================================================================
+            // SYSTÈME DE NIVEAUX, EXPÉRIENCE & RENAISSANCE (PRESTIGE)
+            // ========================================================================
+            getXpRequired(lvl = this.level) {
+                // Courbe progressive équilibrée : 1500 XP pour niv 2, +22% par niveau
+                return Math.floor(1500 * Math.pow(1.22, lvl - 1));
+            }
+
+            getRebirthMultiplier() {
+                // x1.25 cumulatif à chaque renaissance (1.25^N)
+                return Math.pow(1.25, this.rebirths);
+            }
+
+            getLevelScoreBonus() {
+                // +2% de score/XP par niveau au-delà du niveau 1
+                return 1 + (this.level - 1) * 0.02;
+            }
+
+            getTotalScoreMultiplier() {
+                return this.getRebirthMultiplier() * this.getLevelScoreBonus();
+            }
+
+            getDamageMultiplier() {
+                // Bonus de dégâts équilibré : +2% par niveau + bonus progressif de renaissance
+                const levelBonus = 1 + (this.level - 1) * 0.02;
+                const rebirthDmgBonus = 1 + (this.getRebirthMultiplier() - 1) * 0.65;
+                return levelBonus * rebirthDmgBonus;
+            }
+
+            getRequiredLevelForRebirth() {
+                // Renaissance 1 = Niveau 10, Renaissance 2 = Niveau 20, etc.
+                return (this.rebirths + 1) * 10;
+            }
+
+            canRebirth() {
+                return this.level >= this.getRequiredLevelForRebirth();
+            }
+
+            getPilotRankInfo() {
+                const ranks = [
+                    { title: 'PILOTE RECRUE', color: '#00f3ff' },
+                    { title: 'CYBER-AS ★', color: '#34d399' },
+                    { title: 'SPECTRE NÉON ★★', color: '#a855f7' },
+                    { title: 'VALKYRIE SOLAIRE ★★★', color: '#fbbf24' },
+                    { title: 'ENTITÉ COSMIQUE ★★★★', color: '#ff0080' },
+                    { title: 'DIVINITÉ OMÉGA ★★★★★', color: '#f97316' }
+                ];
+                return ranks[Math.min(ranks.length - 1, this.rebirths)];
+            }
+
+            applyProgressionStats() {
+                const rank = this.getPilotRankInfo();
+                this.player.damageMultiplier = this.getDamageMultiplier();
+                this.player.auraColor = rank.color;
+            }
+
+            saveProgression() {
+                localStorage.setItem('neon_nova_highscore', this.highScore.toString());
+                localStorage.setItem('neon_nova_level', this.level.toString());
+                localStorage.setItem('neon_nova_xp', Math.floor(this.xp).toString());
+                localStorage.setItem('neon_nova_rebirths', this.rebirths.toString());
+            }
+
+            addExperience(amount) {
+                if (amount <= 0) return;
+                this.xp += amount;
+                this.sessionXp += amount;
+
+                let leveledUp = false;
+                let req = this.getXpRequired(this.level);
+
+                while (this.xp >= req) {
+                    this.xp -= req;
+                    this.level++;
+                    this.sessionLevelsGained++;
+                    leveledUp = true;
+                    req = this.getXpRequired(this.level);
+                }
+
+                if (leveledUp) {
+                    this.applyProgressionStats();
+                    this.sound.playLevelUp();
+                    this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 130, '#fbbf24', 0.55, 5));
+                    this.floatingTexts.push(new FloatingText(this.player.x, this.player.y - 35, `LEVEL UP ! NIV.${this.level}`, '#fbbf24'));
+
+                    // Réparation partielle de coque offerte lors d'une montée de niveau
+                    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 20);
+                    this.player.shieldPulse = 1.0;
+
+                    if (this.canRebirth()) {
+                        this.showBanner(`NIVEAU ${this.level} ATTEINT !`, `RENAISSANCE DISPONIBLE AU MENU`, false);
+                    }
+                }
+
+                this.saveProgression();
+                this.updateProgressionUI();
+            }
+
+            openRebirthModal() {
+                if (!this.canRebirth()) return;
+                const nextRebirth = this.rebirths + 1;
+                const oldMult = this.getRebirthMultiplier();
+                const newMult = Math.pow(1.25, nextRebirth);
+
+                document.getElementById('modalNextRebirth').textContent = nextRebirth;
+                document.getElementById('modalOldMult').textContent = `x${oldMult.toFixed(2)}`;
+                document.getElementById('modalNewMult').textContent = `x${newMult.toFixed(2)}`;
+
+                const nextRankIdx = Math.min(5, nextRebirth);
+                const nextRankNames = ['PILOTE RECRUE', 'CYBER-AS (Aura Émeraude)', 'SPECTRE NÉON (Aura Plasma)', 'VALKYRIE SOLAIRE (Aura Or)', 'ENTITÉ COSMIQUE (Aura Magenta)', 'DIVINITÉ OMÉGA (Aura Solaire)'];
+                document.getElementById('modalNewAura').textContent = nextRankNames[nextRankIdx];
+
+                document.getElementById('rebirthModal').classList.remove('hidden');
+            }
+
+            performRebirth() {
+                if (!this.canRebirth()) return;
+
+                this.sound.init();
+                this.sound.playRebirth();
+
+                // Reset des niveaux et de l'XP, incrément de la Renaissance
+                this.rebirths++;
+                this.level = 1;
+                this.xp = 0;
+
+                this.applyProgressionStats();
+                this.saveProgression();
+                this.updateProgressionUI();
+
+                document.getElementById('rebirthModal').classList.add('hidden');
+
+                // Si déclenché depuis l'écran Game Over, on retourne au menu principal pour admirer le nouveau rang
+                if (this.state === 'GAMEOVER') {
+                    document.getElementById('gameOverScreen').classList.add('hidden');
+                    document.getElementById('startScreen').classList.remove('hidden');
+                    this.state = 'MENU';
+                }
+
+                // Effet visuel de célébration sur le canevas d'arrière-plan
+                this.createExplosion(this.width / 2, this.height / 2, '#fbbf24', 60, 'boss');
+            }
+
+            updateProgressionUI() {
+                const reqXp = this.getXpRequired(this.level);
+                const xpPct = Math.min(100, Math.round((this.xp / reqXp) * 100));
+                const rebirthMult = this.getRebirthMultiplier();
+                const totalScoreMult = this.getTotalScoreMultiplier();
+                const dmgBonusPct = Math.round((this.getDamageMultiplier() - 1) * 100);
+                const rank = this.getPilotRankInfo();
+                const reqLevel = this.getRequiredLevelForRebirth();
+                const ready = this.canRebirth();
+
+                // 1. Mise à jour du HUD en jeu
+                document.getElementById('hudLevelBadge').textContent = `LVL ${this.level}`;
+                document.getElementById('hudRebirthBadge').textContent = `★ R${this.rebirths}`;
+                document.getElementById('hudTotalBoost').textContent = `x${totalScoreMult.toFixed(2)}`;
+                document.getElementById('hudPilotTitle').textContent = rank.title;
+                document.getElementById('hudPilotTitle').style.color = rank.color;
+                document.getElementById('hudXpText').textContent = `${Math.floor(this.xp).toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
+                document.getElementById('hudXpBar').style.width = `${xpPct}%`;
+                document.getElementById('hudRebirthReadyTag').classList.toggle('hidden', !ready);
+
+                // 2. Mise à jour de la Carte Pilote du Menu Principal
+                document.getElementById('menuPilotTitle').textContent = rank.title;
+                document.getElementById('menuPilotTitle').style.color = rank.color;
+                document.getElementById('menuLevel').textContent = this.level;
+                document.getElementById('menuRebirths').textContent = this.rebirths;
+                document.getElementById('menuXpText').textContent = `${Math.floor(this.xp).toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
+                document.getElementById('menuXpBar').style.width = `${xpPct}%`;
+
+                document.getElementById('menuRebirthMult').textContent = `x${rebirthMult.toFixed(2)}`;
+                document.getElementById('menuScoreBonus').textContent = `x${totalScoreMult.toFixed(2)}`;
+                document.getElementById('menuDamageBonus').textContent = `+${dmgBonusPct}%`;
+
+                const rebirthBtn = document.getElementById('menuRebirthBtn');
+                const rebirthTitle = document.getElementById('menuRebirthBtnTitle');
+                const rebirthSub = document.getElementById('menuRebirthBtnSub');
+
+                if (ready) {
+                    rebirthBtn.disabled = false;
+                    rebirthBtn.className = 'w-full py-3 px-4 rounded-xl rebirth-btn-ready text-white font-cyber text-xs sm:text-sm font-black tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer';
+                    rebirthTitle.textContent = `🔥 RENAISSANCE DISPONIBLE (RANG ${this.rebirths + 1})`;
+                    rebirthSub.textContent = `Reset Niveau 1 • Boost permanent : x${rebirthMult.toFixed(2)} ➔ x${Math.pow(1.25, this.rebirths + 1).toFixed(2)}`;
+                    rebirthSub.className = 'font-sans text-[11px] font-bold text-amber-200';
+                } else {
+                    rebirthBtn.disabled = true;
+                    rebirthBtn.className = 'w-full py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-900/60 text-slate-400 font-cyber text-xs sm:text-sm font-bold tracking-wider uppercase transition-all flex flex-col items-center justify-center gap-0.5 cursor-not-allowed';
+                    rebirthTitle.textContent = `RENAISSANCE ${this.rebirths + 1} (NIVEAU ${this.level} / ${reqLevel})`;
+                    rebirthSub.textContent = `Atteignez le Niveau ${reqLevel} pour renaître (Gain permanent : x1.25)`;
+                    rebirthSub.className = 'font-sans text-[11px] font-normal text-slate-400';
+                }
             }
 
             resize() {
@@ -1385,6 +1758,59 @@
                     this.startGame();
                 });
 
+                document.getElementById('backToMenuBtn').addEventListener('click', () => {
+                    document.getElementById('gameOverScreen').classList.add('hidden');
+                    document.getElementById('startScreen').classList.remove('hidden');
+                    this.state = 'MENU';
+                    this.updateProgressionUI();
+                });
+
+                // Gestion de la Renaissance
+                document.getElementById('menuRebirthBtn').addEventListener('click', () => {
+                    this.sound.init();
+                    this.openRebirthModal();
+                });
+
+                document.getElementById('gameOverRebirthBtn').addEventListener('click', () => {
+                    this.sound.init();
+                    this.openRebirthModal();
+                });
+
+                document.getElementById('cancelRebirthBtn').addEventListener('click', () => {
+                    document.getElementById('rebirthModal').classList.add('hidden');
+                });
+
+                document.getElementById('confirmRebirthBtn').addEventListener('click', () => {
+                    this.performRebirth();
+                });
+
+                // Réinitialisation de la sauvegarde (double clic sécurisé sans confirm())
+                const resetBtn = document.getElementById('resetProgressBtn');
+                resetBtn.addEventListener('click', () => {
+                    if (!this.resetConfirmArmed) {
+                        this.resetConfirmArmed = true;
+                        resetBtn.textContent = 'SÛR ?';
+                        resetBtn.classList.add('border-red-500', 'text-red-400');
+                        setTimeout(() => {
+                            this.resetConfirmArmed = false;
+                            resetBtn.textContent = 'RAZ';
+                            resetBtn.classList.remove('border-red-500', 'text-red-400');
+                        }, 3000);
+                    } else {
+                        this.resetConfirmArmed = false;
+                        resetBtn.textContent = 'RAZ';
+                        this.level = 1;
+                        this.xp = 0;
+                        this.rebirths = 0;
+                        this.highScore = 0;
+                        this.applyProgressionStats();
+                        this.saveProgression();
+                        this.updateProgressionUI();
+                        document.getElementById('menuHighScore').textContent = '0';
+                        document.getElementById('hudHighScore').textContent = '0';
+                    }
+                });
+
                 document.getElementById('empMobileBtn').addEventListener('click', () => {
                     this.triggerEMP();
                 });
@@ -1400,6 +1826,8 @@
             startGame() {
                 this.state = 'PLAYING';
                 this.score = 0;
+                this.sessionXp = 0;
+                this.sessionLevelsGained = 0;
                 this.kills = 0;
                 this.wave = 1;
                 this.multiplier = 1;
@@ -1414,6 +1842,7 @@
                 this.shockwaves = [];
                 this.floatingTexts = [];
 
+                this.applyProgressionStats();
                 this.player.reset(this.width / 2, this.height * 0.8);
                 this.input.pointer.x = this.player.x;
                 this.input.pointer.y = this.player.y;
@@ -1425,6 +1854,7 @@
 
                 this.updateHUD();
                 this.updateWeaponHUD();
+                this.updateProgressionUI();
                 this.startWave(1);
             }
 
@@ -1549,11 +1979,12 @@
                 this.enemies.splice(index, 1);
                 this.kills++;
 
-                // Combo et score
+                // Combo et score multipliés par le boost de Renaissance & Niveau
                 this.comboTimer = this.maxComboTime;
                 this.multiplier = Math.min(12, this.multiplier + 1);
-                const points = Math.round(enemy.score * this.multiplier);
+                const points = Math.round(enemy.score * this.multiplier * this.getTotalScoreMultiplier());
                 this.score += points;
+                this.addExperience(points);
 
                 // Recharge EMP
                 this.empCharge = Math.min(100, this.empCharge + 7);
@@ -1563,7 +1994,7 @@
                 this.addScreenShake(isLarge ? 0.3 : 0.12, isLarge ? 10 : 4);
                 if (isLarge) this.hitStopTimer = 0.04;
 
-                this.floatingTexts.push(new FloatingText(enemy.x, enemy.y, `+${points}`, enemy.color));
+                this.floatingTexts.push(new FloatingText(enemy.x, enemy.y, `+${points.toLocaleString('fr-FR')}`, enemy.color));
 
                 // Probabilité de larguer un bonus (Power-Up)
                 if (Math.random() < (isLarge ? 0.45 : 0.16)) {
@@ -1581,7 +2012,9 @@
                 const b = this.boss;
                 this.boss = null;
                 this.kills++;
-                this.score += Math.round(b.score * this.multiplier);
+                const bossPoints = Math.round(b.score * this.multiplier * this.getTotalScoreMultiplier());
+                this.score += bossPoints;
+                this.addExperience(bossPoints);
                 this.empCharge = 100; // Recharge complète EMP après un boss
 
                 // Effet de ralenti (hit-stop) et méga-explosion
@@ -1591,7 +2024,7 @@
                 this.createExplosion(b.x - 30, b.y + 20, '#00f3ff', 50, 'large');
                 this.createExplosion(b.x + 30, b.y - 20, '#fbbf24', 50, 'large');
 
-                this.floatingTexts.push(new FloatingText(b.x, b.y, `BOSS VAINCU ! +${b.score}`, '#fbbf24'));
+                this.floatingTexts.push(new FloatingText(b.x, b.y, `BOSS VAINCU ! +${bossPoints.toLocaleString('fr-FR')}`, '#fbbf24'));
                 document.getElementById('bossHud').classList.add('hidden');
 
                 // Largage garanti de bonus
@@ -1627,7 +2060,9 @@
 
             applyPowerUp(p) {
                 this.sound.playPowerUp();
-                this.score += 250;
+                const bonusPts = Math.round(250 * this.getTotalScoreMultiplier());
+                this.score += bonusPts;
+                this.addExperience(bonusPts);
                 this.floatingTexts.push(new FloatingText(p.x, p.y, p.config.title, p.config.color));
                 this.shockwaves.push(new Shockwave(this.player.x, this.player.y, 60, p.config.color, 0.35));
 
@@ -1650,14 +2085,14 @@
 
             triggerGameOver() {
                 this.state = 'GAMEOVER';
-                this.createExplosion(this.player.x, this.player.y, '#00f3ff', 65, 'boss');
+                this.createExplosion(this.player.x, this.player.y, this.player.auraColor, 65, 'boss');
                 this.addScreenShake(0.8, 20);
 
                 const isNewRecord = this.score > this.highScore;
                 if (isNewRecord) {
                     this.highScore = this.score;
-                    localStorage.setItem('neon_nova_highscore', this.highScore.toString());
                 }
+                this.saveProgression();
 
                 setTimeout(() => {
                     document.getElementById('hud').classList.add('hidden');
@@ -1665,13 +2100,33 @@
                     document.getElementById('gameOverScreen').classList.remove('hidden');
 
                     document.getElementById('finalScore').textContent = this.score.toLocaleString('fr-FR');
+                    document.getElementById('finalXpGained').textContent = `+${Math.floor(this.sessionXp).toLocaleString('fr-FR')} XP`;
                     document.getElementById('finalHighScore').textContent = this.highScore.toLocaleString('fr-FR');
                     document.getElementById('finalWave').textContent = this.wave;
                     document.getElementById('finalKills').textContent = this.kills;
                     document.getElementById('menuHighScore').textContent = this.highScore.toLocaleString('fr-FR');
                     document.getElementById('hudHighScore').textContent = this.highScore.toLocaleString('fr-FR');
 
+                    // Affichage de la progression de niveau & renaissance
+                    const reqXp = this.getXpRequired(this.level);
+                    const xpPct = Math.min(100, Math.round((this.xp / reqXp) * 100));
+                    document.getElementById('finalLevel').textContent = this.level;
+                    document.getElementById('finalRebirths').textContent = this.rebirths;
+                    document.getElementById('finalRebirthMult').textContent = `x${this.getRebirthMultiplier().toFixed(2)}`;
+                    document.getElementById('finalXpBar').style.width = `${xpPct}%`;
+                    document.getElementById('finalXpProgressText').textContent = `${Math.floor(this.xp).toLocaleString('fr-FR')} / ${reqXp.toLocaleString('fr-FR')} XP`;
+
+                    const lvlBadge = document.getElementById('finalLevelsGainedBadge');
+                    if (this.sessionLevelsGained > 0) {
+                        lvlBadge.textContent = `+${this.sessionLevelsGained} LVL`;
+                        lvlBadge.classList.remove('hidden');
+                    } else {
+                        lvlBadge.classList.add('hidden');
+                    }
+
+                    document.getElementById('gameOverRebirthBtn').classList.toggle('hidden', !this.canRebirth());
                     document.getElementById('newRecordBadge').classList.toggle('hidden', !isNewRecord);
+                    this.updateProgressionUI();
                 }, 900);
             }
 
